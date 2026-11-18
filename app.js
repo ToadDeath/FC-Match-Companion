@@ -210,7 +210,17 @@ function renderMatch(match, matchId) {
       ${renderTeam(awayTeam, "away", awayHeader, fcRatings)}
     </div>
     ${!hasLineup ? '<p class="lineup-footnote">The match details loaded successfully, but FotMob has not supplied the lineups in this response. Try again once lineups are available.</p>' : ""}
-    ${currentMatch.fcRatingsLoading ? '<div class="fc-lookup-progress" role="status" aria-live="polite"><span class="fc-lookup-spinner" aria-hidden="true"></span><span><strong>Loading FC Database ratings</strong><small>Checking player identities and retrieving OVRs from FCRadar. First-time lookups can take a few seconds.</small></span></div>' : ""}
+    ${currentMatch.fcRatingsLoading ? (() => {
+      const progress = currentMatch.fcRatingsProgress || { completed: 0, total: lookupPlayers.length };
+      const percent = progress.total ? Math.round(progress.completed / progress.total * 100) : 0;
+      return `<div class="fc-lookup-progress" role="status" aria-live="polite">
+        <div class="fc-lookup-progress-top"><span class="fc-lookup-spinner" aria-hidden="true"></span>
+          <span><strong>Matching players to FC Database</strong><small>${progress.completed} of ${progress.total} players checked. Retrieving OVRs and verifying player identities.</small></span>
+          <b>${percent}%</b>
+        </div>
+        <div class="fc-lookup-progress-track"><span style="width:${percent}%"></span></div>
+      </div>`;
+    })() : ""}
     <p class="rating-footnote">${currentMatch.fcRatingsLoaded
       ? `FC Database: ${lookupPlayers.length - unmatchedPlayers.length}/${lookupPlayers.length} players matched. ${safeText(unmatchedSummary)}`
       : ratingMode === "fc"
@@ -237,39 +247,60 @@ async function loadFcRatings() {
     return;
   }
 
-  currentMatch = { ...currentMatch, fcRatingsLoading: true };
+  currentMatch = {
+    ...currentMatch,
+    fcRatingsLoading: true,
+    fcRatingsProgress: { completed: 0, total: players.length },
+  };
   renderMatch(currentMatch.match, currentMatch.matchId);
-  if (ratingMode === "fc") setStatus("Looking up FC Database ratings...", "loading");
+  if (ratingMode === "fc") setStatus("Matching players to the FC Database...", "loading");
 
   const lookupMatchId = matchRef.matchId;
   const lookupPromise = (async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("match-companion", {
-        body: { action: "ratings", players }
-      });
-      if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error || "FCRadar ratings could not be loaded.");
-      if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
+      const combinedRatings = { ...(currentMatch.fcRatings || {}) };
+      const batchSize = 5;
 
+      for (let offset = 0; offset < players.length; offset += batchSize) {
+        const batch = players.slice(offset, offset + batchSize);
+        const { data, error } = await supabase.functions.invoke("match-companion", {
+          body: { action: "ratings", players: batch }
+        });
+        if (error) throw error;
+        if (!data?.ok) throw new Error(data?.error || "FCRadar ratings could not be loaded.");
+        if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
+
+        Object.assign(combinedRatings, data.ratings || {});
+        const completed = Math.min(offset + batch.length, players.length);
+        currentMatch = {
+          ...currentMatch,
+          fcRatings: { ...combinedRatings },
+          fcRatingsProgress: { completed, total: players.length },
+        };
+        renderMatch(currentMatch.match, currentMatch.matchId);
+        const matchedSoFar = Object.values(combinedRatings)
+          .filter(item => item?.rating !== null && item?.rating !== undefined).length;
+        setStatus(`Checking FC Database players: ${completed} of ${players.length} checked, ${matchedSoFar} matched.`, "loading");
+      }
+
+      if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
       currentMatch = {
         ...currentMatch,
-        fcRatings: data.ratings || {},
+        fcRatings: combinedRatings,
         fcRatingsLoaded: true,
         fcRatingsLoading: false,
+        fcRatingsProgress: { completed: players.length, total: players.length },
       };
       renderMatch(currentMatch.match, currentMatch.matchId);
-      const matched = Object.values(currentMatch.fcRatings).filter(item => item?.rating !== null && item?.rating !== undefined).length;
-      if (ratingMode === "fc") {
-        setStatus(`FC Database ratings loaded: ${matched} of ${players.length} players matched.`, "success");
-      }
+      const matched = Object.values(combinedRatings)
+        .filter(item => item?.rating !== null && item?.rating !== undefined).length;
+      setStatus(`FC Database matching complete: ${matched} of ${players.length} players matched.`, "success");
     } catch (error) {
       if (currentMatch?.matchId === matchRef.matchId) {
-        currentMatch = { ...currentMatch, fcRatingsLoading: false };
+        currentMatch = { ...currentMatch, fcRatingsLoading: false, fcRatingsError: error.message };
         renderMatch(currentMatch.match, currentMatch.matchId);
       }
-      if (ratingMode === "fc") {
-        setStatus(error.message || "Unable to load FC Database ratings.", "error");
-      }
+      setStatus(error.message || "Unable to load FC Database ratings.", "error");
     } finally {
       if (fcLookupPromise?.matchId === lookupMatchId) fcLookupPromise = null;
     }
