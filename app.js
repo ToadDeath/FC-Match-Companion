@@ -191,7 +191,7 @@ function renderMatch(match, matchId) {
           : currentMatch.fcRatingsLoaded
             ? "FC Database ratings from FCRadar. A dash means no confident player match was found."
             : "Select FC Database to view player OVRs from FCRadar.")
-      : "FotMob match ratings are displayed when available. Switch to FC Database to view player OVRs."}</p>
+      : "FotMob match ratings are displayed by default. FC Database player OVRs are fetched in the background."}</p>
   `;
 
   matchContent.classList.remove("hidden");
@@ -200,7 +200,7 @@ function renderMatch(match, matchId) {
 
 async function loadFcRatings() {
   if (!currentMatch || currentMatch.fcRatingsLoaded || currentMatch.fcRatingsLoading) return;
-  if (fcLookupPromise) return fcLookupPromise;
+  if (fcLookupPromise?.matchId === currentMatch.matchId) return fcLookupPromise.promise;
   if (!supabase) {
     setStatus("Supabase is not configured, so FC ratings cannot be loaded.", "error");
     return;
@@ -215,9 +215,10 @@ async function loadFcRatings() {
 
   currentMatch = { ...currentMatch, fcRatingsLoading: true };
   renderMatch(currentMatch.match, currentMatch.matchId);
-  setStatus("Looking up FC Database ratings...", "loading");
+  if (ratingMode === "fc") setStatus("Looking up FC Database ratings...", "loading");
 
-  fcLookupPromise = (async () => {
+  const lookupMatchId = matchRef.matchId;
+  const lookupPromise = (async () => {
     try {
       const { data, error } = await supabase.functions.invoke("match-companion", {
         body: { action: "ratings", players }
@@ -234,19 +235,24 @@ async function loadFcRatings() {
       };
       renderMatch(currentMatch.match, currentMatch.matchId);
       const matched = Object.values(currentMatch.fcRatings).filter(item => item?.rating !== null && item?.rating !== undefined).length;
-      setStatus(`FC Database ratings loaded: ${matched} of ${players.length} players matched.`, "success");
+      if (ratingMode === "fc") {
+        setStatus(`FC Database ratings loaded: ${matched} of ${players.length} players matched.`, "success");
+      }
     } catch (error) {
       if (currentMatch?.matchId === matchRef.matchId) {
         currentMatch = { ...currentMatch, fcRatingsLoading: false };
         renderMatch(currentMatch.match, currentMatch.matchId);
       }
-      setStatus(error.message || "Unable to load FC Database ratings.", "error");
+      if (ratingMode === "fc") {
+        setStatus(error.message || "Unable to load FC Database ratings.", "error");
+      }
     } finally {
-      fcLookupPromise = null;
+      if (fcLookupPromise?.matchId === lookupMatchId) fcLookupPromise = null;
     }
   })();
 
-  return fcLookupPromise;
+  fcLookupPromise = { matchId: lookupMatchId, promise: lookupPromise };
+  return lookupPromise;
 }
 
 function updateRatingMode() {
@@ -293,7 +299,9 @@ form.addEventListener("submit", async event => {
     currentMatch = { match: data.matchData, matchId, fcRatings: {}, fcRatingsLoaded: false };
     renderMatch(data.matchData, matchId);
     setStatus("Match loaded successfully.", "success");
-    if (ratingMode === "fc") loadFcRatings();
+    // Prefetch FC Database ratings as soon as the match lineups are available,
+    // even while FotMob remains the selected display mode.
+    loadFcRatings();
   } catch (error) {
     setStatus(error.message || "Something went wrong while loading the match.", "error");
   } finally {
