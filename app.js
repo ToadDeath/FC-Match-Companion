@@ -228,14 +228,12 @@ function renderMatch(match, matchId) {
     </div>
     ${!hasLineup ? '<p class="lineup-footnote">The match details loaded successfully, but FotMob has not supplied the lineups in this response. Try again once lineups are available.</p>' : ""}
     ${currentMatch.fcRatingsLoading ? (() => {
-      const progress = currentMatch.fcRatingsProgress || { completed: 0, total: lookupPlayers.length };
-      const percent = progress.total ? Math.round(progress.completed / progress.total * 100) : 0;
+      const progress = currentMatch.fcRatingsProgress || { matched: 0, total: lookupPlayers.length };
       return `<div class="fc-lookup-progress" role="status" aria-live="polite">
         <div class="fc-lookup-progress-top"><span class="fc-lookup-spinner" aria-hidden="true"></span>
-          <span><strong>Matching players to FC Database</strong><small>${progress.completed} of ${progress.total} players checked. ${safeText(currentMatch.fcRatingsStage || "Checking saved ratings.")}</small></span>
-          <b>${percent}%</b>
+          <span><strong>Matching players to FC Database</strong><small>${safeText(currentMatch.fcRatingsStage || "Checking saved ratings.")}</small></span>
+          <b class="fc-lookup-count">${progress.matched}/${progress.total}</b>
         </div>
-        <div class="fc-lookup-progress-track"><span style="width:${percent}%"></span></div>
       </div>`;
     })() : ""}
     <p class="rating-footnote">${currentMatch.fcRatingsLoaded
@@ -268,7 +266,7 @@ async function loadFcRatings() {
   currentMatch = {
     ...currentMatch,
     fcRatingsLoading: true,
-    fcRatingsProgress: { completed: 0, total: players.length },
+    fcRatingsProgress: { matched: 0, total: players.length },
   };
   renderMatch(currentMatch.match, currentMatch.matchId);
   setStatus("Matching players to the FC Database...", "loading");
@@ -288,19 +286,20 @@ async function loadFcRatings() {
       const combinedRatings = { ...(currentMatch.fcRatings || {}), ...(cacheData.ratings || {}) };
       const missingKeys = new Set(cacheData.missingKeys || []);
       const missingPlayers = players.filter(player => missingKeys.has(player.key));
-      const cachedCount = players.length - missingPlayers.length;
+      const cachedCount = players.filter(player => combinedRatings[player.key]?.rating !== null && combinedRatings[player.key]?.rating !== undefined).length;
       const batchSize = 8;
       const totalBatches = Math.ceil(missingPlayers.length / batchSize);
 
       currentMatch = {
         ...currentMatch,
         fcRatings: { ...combinedRatings },
-        fcRatingsProgress: { completed: cachedCount, total: players.length },
+        fcRatingsProgress: { matched: cachedCount, total: players.length },
         fcRatingsStage: missingPlayers.length
-          ? `${cachedCount} saved ratings loaded. Resolving ${missingPlayers.length} uncached players.`
+          ? `${cachedCount}/${players.length} matched so far. Resolving ${missingPlayers.length} uncached players.`
           : "All ratings loaded from the saved cache.",
       };
       renderMatch(currentMatch.match, currentMatch.matchId);
+      setStatus(`FC Database: ${cachedCount}/${players.length} players matched. Continuing...`, "loading");
 
       for (let offset = 0; offset < missingPlayers.length; offset += batchSize) {
         const batch = missingPlayers.slice(offset, offset + batchSize);
@@ -319,20 +318,23 @@ async function loadFcRatings() {
         if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
 
         Object.assign(combinedRatings, data.ratings || {});
-        const completed = cachedCount + Math.min(offset + batch.length, missingPlayers.length);
+        const matched = players.filter(player =>
+          combinedRatings[player.key]?.rating !== null && combinedRatings[player.key]?.rating !== undefined
+        ).length;
         currentMatch = {
           ...currentMatch,
           fcRatings: { ...combinedRatings },
-          fcRatingsProgress: { completed, total: players.length },
-          fcRatingsStage: `${completed} of ${players.length} players checked.`,
+          fcRatingsProgress: { matched, total: players.length },
+          fcRatingsStage: `${matched}/${players.length} matched so far.`,
         };
         renderMatch(currentMatch.match, currentMatch.matchId);
+        setStatus(`FC Database: ${matched}/${players.length} players matched. Continuing...`, "loading");
       }
 
       currentMatch = {
         ...currentMatch,
         fcRatings: combinedRatings,
-        fcRatingsProgress: { completed: players.length, total: players.length },
+        fcRatingsProgress: { matched: players.filter(player => combinedRatings[player.key]?.rating !== null && combinedRatings[player.key]?.rating !== undefined).length, total: players.length },
         fcRatingsStage: "All players checked.",
       };
       renderMatch(currentMatch.match, currentMatch.matchId);
