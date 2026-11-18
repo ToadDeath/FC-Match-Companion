@@ -46,3 +46,7 @@
 .lineup-footnote,.rating-footnote{color:#81919d;font-size:10px;line-height:1.6;margin:14px 2px 0}
 .rating-footnote{color:#91a1ab}
 @media(max-width:700px){.match-content{padding:0 12px 17px}.scoreboard{gap:7px;margin:18px auto 10px}.score-team{gap:7px;font-size:11px}.score-team strong{font-size:25px}.score-center{min-width:68px}.score-center strong{font-size:19px}.lineups-grid{grid-template-columns:1fr}.lineups-heading{align-items:flex-start;flex-direction:column;gap:5px}.lineup-note{text-align:left}.team-heading{padding:12px}.player-list{padding:3px 10px}}
+
+/* The home and away score cells are the only score display. Keep the center for match status. */
+.score-center strong{font:700 10px "Space Grotesk",sans-serif;color:#91a1ab;letter-spacing:1.5px;text-transform:uppercase}
+.score-center span{display:none}
