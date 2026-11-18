@@ -79,18 +79,74 @@ export default {
 
         const players = body.players as PlayerRequest[];
         const ratings: Record<string, RatingResult> = {};
-        let nextIndex = 0;
 
+        // Resolve all known FotMob identities and unexpired edition ratings in
+        // two bulk database reads instead of two reads per player.
+        const fotmobIds = [...new Set(players
+          .map(player => player?.fotmobId == null ? "" : String(player.fotmobId))
+          .filter(Boolean))];
+        const identityByFotmobId = new Map<string, Record<string, unknown>>();
+        const ratingByFcradarId = new Map<string, Record<string, unknown>>();
+
+        if (fotmobIds.length) {
+          const { data: identities, error: identityError } = await ctx.supabaseAdmin
+            .from("fc_player_identities")
+            .select("fcradar_player_id, fotmob_player_id, player_name, common_name, first_name, last_name")
+            .in("fotmob_player_id", fotmobIds);
+          if (identityError) throw new Error(`Player identity cache read failed: ${identityError.message}`);
+
+          for (const identity of identities || []) {
+            identityByFotmobId.set(String(identity.fotmob_player_id), identity);
+          }
+
+          const fcradarIds = [...new Set((identities || [])
+            .map((identity: Record<string, unknown>) => String(identity.fcradar_player_id || ""))
+            .filter(Boolean))];
+          if (fcradarIds.length) {
+            const { data: cachedRatings, error: ratingError } = await ctx.supabaseAdmin
+              .from("fc_player_ratings")
+              .select("fcradar_player_id, overall_rating, club_name, expires_at")
+              .in("fcradar_player_id", fcradarIds)
+              .eq("game_code", GAME_CODE)
+              .gt("expires_at", new Date().toISOString());
+            if (ratingError) throw new Error(`Player rating cache read failed: ${ratingError.message}`);
+
+            for (const rating of cachedRatings || []) {
+              ratingByFcradarId.set(String(rating.fcradar_player_id), rating);
+            }
+          }
+        }
+
+        let nextIndex = 0;
         async function worker() {
           while (nextIndex < players.length) {
             const index = nextIndex++;
             const player = players[index];
             if (!player?.key || !player?.name) continue;
-            ratings[player.key] = await lookupPlayer(player, apiKey, ctx.supabaseAdmin);
+
+            const identity = player.fotmobId == null
+              ? undefined
+              : identityByFotmobId.get(String(player.fotmobId));
+            const cachedRating = identity?.fcradar_player_id == null
+              ? undefined
+              : ratingByFcradarId.get(String(identity.fcradar_player_id));
+
+            if (identity && cachedRating) {
+              ratings[player.key] = {
+                rating: Number(cachedRating.overall_rating),
+                status: "matched",
+                playerName: String(identity.player_name || player.name),
+                club: String(cachedRating.club_name || ""),
+                playerId: String(identity.fcradar_player_id),
+                source: "cache",
+              };
+            } else {
+              ratings[player.key] = await lookupPlayer(player, apiKey, ctx.supabaseAdmin);
+            }
           }
         }
 
-        await Promise.all(Array.from({ length: Math.min(5, players.length) }, () => worker()));
+        await Promise.all(Array.from({ length: Math.min(8, players.length) }, () => worker()));
         return Response.json({ ok: true, ratings });
       }
 
@@ -217,7 +273,6 @@ async function lookupPlayer(
 
     if (error) throw new Error(`Player rating cache read failed: ${error.message}`);
     if (data) {
-      await touchIdentity(db, identity);
       return {
         rating: Number(data.overall_rating),
         status: "matched",
@@ -605,14 +660,6 @@ function extractPlayerRecord(payload: unknown, depth = 0): FCRadarPlayer | undef
     }
   }
   return undefined;
-}
-
-async function touchIdentity(db: any, identity: Record<string, unknown>) {
-  const { error } = await db
-    .from("fc_player_identities")
-    .update({ last_seen_at: new Date().toISOString() })
-    .eq("fcradar_player_id", String(identity.fcradar_player_id));
-  if (error) console.warn("Could not update player last-seen timestamp:", error.message);
 }
 
 function nullableString(value: unknown): string | null {
