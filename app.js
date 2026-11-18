@@ -211,6 +211,7 @@ function renderPlayerBubble(player, side, fcRatings, position) {
   const key = playerKey(player, side), fcResult = fcRatings[key];
   const fcRating = fcResult?.rating === null || fcResult?.rating === undefined ? "" : String(fcResult.rating);
   const displayed = ratingMode === "fotmob" ? playerRating(player) : fcRating;
+  const ratingTone = displayed !== "" && Number(displayed) >= 7 ? "rating-good" : displayed !== "" ? "rating-low" : "rating-unavailable";
   const photo = playerPhotoUrl(player);
   const photoMarkup = photo ? '<img class="player-face" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : "";
   const fallbackMarkup = '<span class="player-face-fallback" aria-hidden="true" ' + (photo ? "hidden" : "") + '></span>';
@@ -218,7 +219,7 @@ function renderPlayerBubble(player, side, fcRatings, position) {
     '<span class="player-face-wrap">' + photoMarkup + fallbackMarkup +
     (number !== "" ? '<span class="player-shirt-number">' + safeText(number) + "</span>" : "") + "</span>" +
     '<span class="pitch-player-name">' + safeText(name) + "</span>" +
-    '<span class="pitch-player-rating ' + (displayed ? "" : "rating-unavailable") + '">' + safeText(displayed || "—") + "</span></div>";
+    '<span class="pitch-player-rating ' + ratingTone + '">' + safeText(displayed || "—") + "</span></div>";
 }
 
 function renderRosterPlayer(player, side, fcRatings, kind) {
@@ -227,6 +228,7 @@ function renderRosterPlayer(player, side, fcRatings, kind) {
   const key = playerKey(player, side), fcResult = fcRatings[key];
   const fcRating = fcResult?.rating === null || fcResult?.rating === undefined ? "" : String(fcResult.rating);
   const displayed = ratingMode === "fotmob" ? playerRating(player) : fcRating;
+  const ratingTone = displayed !== "" && Number(displayed) >= 7 ? "rating-good" : displayed !== "" ? "rating-low" : "rating-unavailable";
   const photo = playerPhotoUrl(player);
   const position = player?.positionName || player?.position || player?.usualPosition || "";
   const minute = player?.timeSubbedOn ?? player?.subbedOn ?? player?.substitutionMinute ?? "";
@@ -237,7 +239,7 @@ function renderRosterPlayer(player, side, fcRatings, kind) {
     '<span class="roster-number">' + safeText(number || "·") + "</span>" +
     (photo ? '<img class="roster-face" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="roster-face roster-face-empty"></span>') +
     '<span class="roster-copy"><strong>' + safeText(name) + '</strong><small>' + safeText(position) + (detail ? ' · ' + detail : "") + '</small></span>' +
-    '<span class="roster-rating ' + (displayed ? "" : "rating-unavailable") + '">' + safeText(displayed || "—") + "</span></div>";
+    '<span class="roster-rating ' + ratingTone + '">' + safeText(displayed || "—") + "</span></div>";
 }
 
 function renderRosterColumn(players, side, fcRatings, kind) {
@@ -249,11 +251,12 @@ function renderTeamPitchHeader(team, headerTeam, side) {
   const name = team?.name || headerTeam?.name || (side === "home" ? "Home" : "Away");
   const crest = headerTeam?.imageUrl || team?.imageUrl || "";
   const rating = team?.rating ?? team?.averageRating ?? "";
+  const ratingTone = rating !== "" && Number(rating) >= 7 ? "rating-good" : rating !== "" ? "rating-low" : "";
   return '<div class="pitch-team-label ' + side + '">' +
-    (side === "home" && rating !== "" ? '<span class="team-average-rating">' + safeText(rating) + '</span>' : "") +
+    (side === "home" && rating !== "" ? '<span class="team-average-rating ' + ratingTone + '">' + safeText(rating) + '</span>' : "") +
     (crest ? '<img src="' + safeText(crest) + '" alt="" loading="lazy">' : "") +
     '<span>' + safeText(name) + '</span><small>' + safeText(team?.formation || "") + '</small>' +
-    (side === "away" && rating !== "" ? '<span class="team-average-rating away-rating">' + safeText(rating) + '</span>' : "") + '</div>';
+    (side === "away" && rating !== "" ? '<span class="team-average-rating ' + ratingTone + '">' + safeText(rating) + '</span>' : "") + '</div>';
 }
 
 function renderCombinedPitch(home, away, homeHeader, awayHeader, fcRatings) {
