@@ -2,7 +2,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "jsr:@supabase/server@^1";
 
-const GAME_CODE = "fc27";
+const GAME_CODE = (Deno.env.get("FC_DATABASE_GAME_CODE") || "fc27").trim().toLowerCase();
 const FCRADAR_PLAYERS_URL = `https://pub-api.fcradar.gg/v1/games/${GAME_CODE}/players`;
 const RATING_TTL_DAYS = 30;
 
@@ -184,8 +184,11 @@ async function lookupPlayer(
     [fcradarPlayer.first_name, fcradarPlayer.last_name].filter(Boolean).join(" ") ??
     player.name
   );
+  const clubValue = fcradarPlayer.club;
   const club = String(
-    (fcradarPlayer.club as Record<string, unknown> | undefined)?.name ??
+    (clubValue && typeof clubValue === "object"
+      ? (clubValue as Record<string, unknown>).name
+      : clubValue) ??
     fcradarPlayer.clubName ?? fcradarPlayer.teamName ?? ""
   );
   const position = String(fcradarPlayer.position ?? player.position ?? "");
