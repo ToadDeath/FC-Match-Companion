@@ -156,8 +156,8 @@ function renderPlayerBubble(player, side, fcRatings, position) {
   const photoMarkup = photo ? '<img class="player-face" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : "";
   const fallbackMarkup = '<span class="player-face-fallback" ' + (photo ? "hidden" : "") + '>' + safeText(playerInitials(name)) + "</span>";
   return '<div class="pitch-player" style="--player-x:' + position.x + '%;--player-y:' + position.y + '%" title="' + safeText(name) + '">' +
-    '<span class="player-face-wrap">' + photoMarkup + fallbackMarkup + "</span>" +
-    (number !== "" ? '<span class="player-shirt-number">' + safeText(number) + "</span>" : "") +
+    '<span class="player-face-wrap">' + photoMarkup + fallbackMarkup +
+    (number !== "" ? '<span class="player-shirt-number">' + safeText(number) + "</span>" : "") + "</span>" +
     '<span class="pitch-player-name">' + safeText(name) + "</span>" +
     '<span class="pitch-player-rating ' + (displayed ? "" : "rating-unavailable") + '">' + safeText(displayed || "—") + "</span></div>";
 }
