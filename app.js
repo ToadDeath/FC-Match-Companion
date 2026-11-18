@@ -212,7 +212,7 @@ function renderMatch(match, matchId) {
     ${!hasLineup ? '<p class="lineup-footnote">The match details loaded successfully, but FotMob has not supplied the lineups in this response. Try again once lineups are available.</p>' : ""}
     ${currentMatch.fcRatingsLoading ? '<div class="fc-lookup-progress" role="status" aria-live="polite"><span class="fc-lookup-spinner" aria-hidden="true"></span><span><strong>Loading FC Database ratings</strong><small>Checking player identities and retrieving OVRs from FCRadar. First-time lookups can take a few seconds.</small></span></div>' : ""}
     <p class="rating-footnote">${currentMatch.fcRatingsLoaded
-      ? `FC Database: ${lookupPlayers.length - unmatchedPlayers.length}/${lookupPlayers.length} players matched. ${unmatchedSummary}`
+      ? `FC Database: ${lookupPlayers.length - unmatchedPlayers.length}/${lookupPlayers.length} players matched. ${safeText(unmatchedSummary)}`
       : ratingMode === "fc"
         ? "FC Database ratings are retrieved from FCRadar."
         : "FotMob match ratings are displayed by default. FC Database ratings are prepared in the background."}</p>
