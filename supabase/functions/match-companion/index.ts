@@ -4,7 +4,7 @@ import { withSupabase } from "jsr:@supabase/server@^1";
 
 const GAME_CODE = (Deno.env.get("FC_DATABASE_GAME_CODE") || "fc27").trim().toLowerCase();
 const FCRADAR_PLAYERS_URL = `https://pub-api.fcradar.gg/v1/games/${GAME_CODE}/players`;
-const RATING_TTL_DAYS = 30;
+const RATING_TTL_DAYS = 14;
 
 interface PlayerRequest {
   key: string;
