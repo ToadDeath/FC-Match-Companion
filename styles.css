@@ -153,3 +153,10 @@
   .roster-player{min-height:46px}
   .pitch-team-label small{display:none}
 }
+
+.pitch-player-rating.rating-good,.roster-rating.rating-good,.team-average-rating.rating-good{
+  background:#25c875;color:#082317;border-color:transparent;
+}
+.pitch-player-rating.rating-low,.roster-rating.rating-low,.team-average-rating.rating-low{
+  background:#ff9d42;color:#2b1807;border-color:transparent;
+}
