@@ -2,12 +2,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "jsr:@supabase/server@^1";
 
-const FCRADAR_BASE = "https://pub-api.fcradar.gg/v1/games/fc27/players";
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const ratingCache = new Map<string, { expiresAt: number; result: RatingResult }>();
+const GAME_CODE = "fc27";
+const FCRADAR_PLAYERS_URL = `https://pub-api.fcradar.gg/v1/games/${GAME_CODE}/players`;
+const RATING_TTL_DAYS = 30;
 
 interface PlayerRequest {
   key: string;
+  fotmobId?: string | number | null;
   name: string;
   position?: string;
   team?: string;
@@ -19,12 +20,15 @@ interface RatingResult {
   playerName?: string;
   club?: string;
   playerId?: string | number;
+  source?: "cache" | "fcradar";
 }
+
+type FCRadarPlayer = Record<string, unknown>;
 
 console.info("FC Match Companion function started");
 
 export default {
-  fetch: withSupabase({ auth: ["publishable"] }, async (req, _ctx) => {
+  fetch: withSupabase({ auth: ["publishable"] }, async (req, ctx) => {
     try {
       const body = await req.json();
 
@@ -81,7 +85,7 @@ export default {
             const index = nextIndex++;
             const player = players[index];
             if (!player?.key || !player?.name) continue;
-            ratings[player.key] = await lookupPlayer(player, apiKey);
+            ratings[player.key] = await lookupPlayer(player, apiKey, ctx.supabaseAdmin);
           }
         }
 
@@ -97,42 +101,175 @@ export default {
   }),
 };
 
-async function lookupPlayer(player: PlayerRequest, apiKey: string): Promise<RatingResult> {
-  const cacheKey = `${normalize(player.name)}|${normalize(player.position || "")}`;
-  const cached = ratingCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) return cached.result;
+async function lookupPlayer(
+  player: PlayerRequest,
+  apiKey: string,
+  db: any,
+): Promise<RatingResult> {
+  const fotmobId = player.fotmobId == null ? null : String(player.fotmobId);
+  let identity: Record<string, unknown> | null = null;
 
-  const url = new URL(FCRADAR_BASE);
+  // The FotMob ID is the primary cross-provider key after the first verified match.
+  if (fotmobId) {
+    const { data, error } = await db
+      .from("fc_player_identities")
+      .select("fcradar_player_id, fotmob_player_id, player_name, common_name, first_name, last_name")
+      .eq("fotmob_player_id", fotmobId)
+      .maybeSingle();
+    if (error) throw new Error(`Player identity cache read failed: ${error.message}`);
+    identity = data;
+  }
+
+  // A 30-day rating cache is edition-specific, while the player identity is not.
+  if (identity?.fcradar_player_id) {
+    const { data, error } = await db
+      .from("fc_player_ratings")
+      .select("overall_rating, club_name, position, fetched_at, expires_at")
+      .eq("fcradar_player_id", String(identity.fcradar_player_id))
+      .eq("game_code", GAME_CODE)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+
+    if (error) throw new Error(`Player rating cache read failed: ${error.message}`);
+    if (data) {
+      await touchIdentity(db, identity);
+      return {
+        rating: Number(data.overall_rating),
+        status: "matched",
+        playerName: String(identity.player_name || player.name),
+        club: String(data.club_name || ""),
+        playerId: String(identity.fcradar_player_id),
+        source: "cache",
+      };
+    }
+  }
+
+  let fcradarPlayer: FCRadarPlayer | undefined;
+  if (identity?.fcradar_player_id) {
+    fcradarPlayer = await fetchFCRadarPlayerById(String(identity.fcradar_player_id), apiKey);
+    if (!fcradarPlayer) {
+      console.warn("Mapped FCRadar player ID no longer resolves; trying name lookup", {
+        fotmobId,
+        fcradarPlayerId: identity.fcradar_player_id,
+      });
+      identity = null;
+    }
+  }
+
+  // Only players without a verified ID mapping need name-based discovery.
+  if (!fcradarPlayer) {
+    const lookup = await findFCRadarPlayer(player, apiKey);
+    if (lookup.status !== "matched" || !lookup.player) return lookup;
+    fcradarPlayer = lookup.player;
+  }
+
+  const fcradarId = fcradarPlayer.id ?? fcradarPlayer.playerId;
+  if (fcradarId == null) {
+    console.warn("FCRadar player record did not include an ID", { requestedName: player.name });
+    return { rating: null, status: "not_found" };
+  }
+
+  const playerId = String(fcradarId);
+  const rawRating = fcradarPlayer.overall_rating ?? fcradarPlayer.overall ??
+    fcradarPlayer.ovr ?? fcradarPlayer.rating ??
+    (fcradarPlayer.ratings as Record<string, unknown> | undefined)?.overall;
+  const numericRating = Number(rawRating);
+  if (!Number.isFinite(numericRating) || numericRating <= 0) {
+    return { rating: null, status: "not_found", playerId };
+  }
+
+  const playerName = String(
+    fcradarPlayer.name ??
+    fcradarPlayer.common_name ??
+    [fcradarPlayer.first_name, fcradarPlayer.last_name].filter(Boolean).join(" ") ??
+    player.name
+  );
+  const club = String(
+    (fcradarPlayer.club as Record<string, unknown> | undefined)?.name ??
+    fcradarPlayer.clubName ?? fcradarPlayer.teamName ?? ""
+  );
+  const position = String(fcradarPlayer.position ?? player.position ?? "");
+
+  // Store the stable cross-provider identity separately from edition-specific ratings.
+  const identityRow = {
+    fcradar_player_id: playerId,
+    fotmob_player_id: fotmobId,
+    player_name: playerName,
+    common_name: nullableString(fcradarPlayer.common_name),
+    first_name: nullableString(fcradarPlayer.first_name),
+    last_name: nullableString(fcradarPlayer.last_name),
+    identity_source: "fcradar_exact_name",
+    last_seen_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error: identityWriteError } = await db
+    .from("fc_player_identities")
+    .upsert(identityRow, { onConflict: "fcradar_player_id" });
+  if (identityWriteError) {
+    // Still return the live rating if identity persistence fails, but make the problem visible.
+    console.error("Could not persist player identity mapping:", identityWriteError.message);
+  }
+
+  const fetchedAt = new Date();
+  const expiresAt = new Date(fetchedAt.getTime() + RATING_TTL_DAYS * 24 * 60 * 60 * 1000);
+  const { error: ratingWriteError } = await db
+    .from("fc_player_ratings")
+    .upsert({
+      fcradar_player_id: playerId,
+      game_code: GAME_CODE,
+      overall_rating: Math.round(numericRating),
+      club_name: club || null,
+      position: position || null,
+      fetched_at: fetchedAt.toISOString(),
+      expires_at: expiresAt.toISOString(),
+    }, { onConflict: "fcradar_player_id,game_code" });
+
+  if (ratingWriteError) {
+    console.error("Could not persist player rating:", ratingWriteError.message);
+  }
+
+  return {
+    rating: Math.round(numericRating),
+    status: "matched",
+    playerName,
+    club,
+    playerId,
+    source: "fcradar",
+  };
+}
+
+async function findFCRadarPlayer(
+  player: PlayerRequest,
+  apiKey: string,
+): Promise<{ status: "matched" | "not_found" | "ambiguous"; player?: FCRadarPlayer; rating: number | null }> {
+  const url = new URL(FCRADAR_PLAYERS_URL);
   url.searchParams.set("search", player.name);
   url.searchParams.set("pageSize", "10");
 
   const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers: { Accept: "application/json", Authorization: `Bearer ${apiKey}` },
   });
 
   if (response.status === 429) {
-    const result: RatingResult = { rating: null, status: "not_found" };
-    return result;
+    console.warn("FCRadar rate limit reached during player search");
+    return { rating: null, status: "not_found" };
   }
   if (!response.ok) {
-    const detail = await response.text();
-    console.error("FCRadar API error:", response.status, detail.slice(0, 500));
+    console.error("FCRadar search failed:", response.status, (await response.text()).slice(0, 300));
     throw new Error(`FCRadar returned HTTP ${response.status}.`);
   }
 
   const payload = await response.json();
   const candidates = extractPlayers(payload);
-  console.info("FCRadar lookup diagnostics:", {
+  console.info("FCRadar player search:", {
     requestedName: player.name,
     httpStatus: response.status,
-    payloadType: Array.isArray(payload) ? "array" : typeof payload,
-    payloadKeys: payload && typeof payload === "object" ? Object.keys(payload as Record<string, unknown>) : [],
     candidateCount: candidates.length,
-    firstCandidateKeys: candidates[0] ? Object.keys(candidates[0]) : [],
+    fotmobId: player.fotmobId ?? null,
   });
+
+  const requested = normalize(player.name);
   const exact = candidates.filter(candidate => {
     const firstLast = [candidate.first_name, candidate.last_name]
       .filter(value => typeof value === "string" && value.trim())
@@ -144,11 +281,10 @@ async function lookupPlayer(player: PlayerRequest, apiKey: string): Promise<Rati
       candidate.common_name,
       firstLast,
     ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
-    const requested = normalize(player.name);
     return names.some(name => normalize(name) === requested);
   });
 
-  let selected: Record<string, unknown> | undefined;
+  let selected: FCRadarPlayer | undefined;
   if (exact.length === 1) {
     selected = exact[0];
   } else if (exact.length > 1 && player.position) {
@@ -158,52 +294,35 @@ async function lookupPlayer(player: PlayerRequest, apiKey: string): Promise<Rati
     if (positionMatches.length === 1) selected = positionMatches[0];
   }
 
-  let result: RatingResult;
   if (!selected) {
-    result = {
-      rating: null,
-      status: exact.length > 1 ? "ambiguous" : "not_found",
-    };
-  } else {
-    const rawRating = selected.overall_rating ?? selected.overall ?? selected.ovr ?? selected.rating ??
-      (selected.ratings as Record<string, unknown> | undefined)?.overall;
-    const numericRating = Number(rawRating);
-    result = {
-      rating: Number.isFinite(numericRating) && numericRating > 0 ? numericRating : null,
-      status: Number.isFinite(numericRating) && numericRating > 0 ? "matched" : "not_found",
-      playerName: String(selected.name ?? selected.common_name ??
-        [selected.first_name, selected.last_name].filter(Boolean).join(" ") ??
-        selected.fullName ?? player.name),
-      club: String(
-        (selected.club as Record<string, unknown> | undefined)?.name ??
-        selected.clubName ?? selected.teamName ?? ""
-      ),
-      playerId: (selected.id ?? selected.playerId) as string | number | undefined,
-    };
+    return { rating: null, status: exact.length > 1 ? "ambiguous" : "not_found" };
   }
-
-  // Cache successful matches only. Failed or ambiguous lookups should be retried
-  // after data or matching logic changes instead of persisting a false negative.
-  if (result.status === "matched") {
-    ratingCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, result });
-  }
-  return result;
+  return { rating: null, status: "matched", player: selected };
 }
 
-function extractPlayers(payload: unknown, depth = 0): Record<string, unknown>[] {
+async function fetchFCRadarPlayerById(playerId: string, apiKey: string): Promise<FCRadarPlayer | undefined> {
+  const response = await fetch(`${FCRADAR_PLAYERS_URL}/${encodeURIComponent(playerId)}`, {
+    headers: { Accept: "application/json", Authorization: `Bearer ${apiKey}` },
+  });
+  if (response.status === 404) return undefined;
+  if (response.status === 429) throw new Error("FCRadar rate limit reached while refreshing a player.");
+  if (!response.ok) {
+    console.error("FCRadar player refresh failed:", response.status, (await response.text()).slice(0, 300));
+    throw new Error(`FCRadar returned HTTP ${response.status} while refreshing a player.`);
+  }
+  return extractPlayerRecord(await response.json());
+}
+
+function extractPlayers(payload: unknown, depth = 0): FCRadarPlayer[] {
   if (depth > 4 || !payload || typeof payload !== "object") return [];
   if (Array.isArray(payload)) {
-    if (payload.length === 0 || payload.every(item => item && typeof item === "object")) {
-      return payload as Record<string, unknown>[];
-    }
-    return [];
+    return payload.filter(item => item && typeof item === "object") as FCRadarPlayer[];
   }
-
   const root = payload as Record<string, unknown>;
   for (const key of ["players", "results", "items", "records", "content", "data"]) {
     const value = root[key];
     if (Array.isArray(value)) {
-      const records = value.filter(item => item && typeof item === "object") as Record<string, unknown>[];
+      const records = value.filter(item => item && typeof item === "object") as FCRadarPlayer[];
       if (records.length || value.length === 0) return records;
     }
     if (value && typeof value === "object") {
@@ -212,6 +331,34 @@ function extractPlayers(payload: unknown, depth = 0): Record<string, unknown>[] 
     }
   }
   return [];
+}
+
+function extractPlayerRecord(payload: unknown, depth = 0): FCRadarPlayer | undefined {
+  if (depth > 4 || !payload || typeof payload !== "object") return undefined;
+  if (Array.isArray(payload)) {
+    return payload.length ? extractPlayerRecord(payload[0], depth + 1) : undefined;
+  }
+  const root = payload as FCRadarPlayer;
+  if (root.id != null || root.playerId != null) return root;
+  for (const key of ["player", "data", "result", "item"]) {
+    if (root[key] && typeof root[key] === "object") {
+      const found = extractPlayerRecord(root[key], depth + 1);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+async function touchIdentity(db: any, identity: Record<string, unknown>) {
+  const { error } = await db
+    .from("fc_player_identities")
+    .update({ last_seen_at: new Date().toISOString() })
+    .eq("fcradar_player_id", String(identity.fcradar_player_id));
+  if (error) console.warn("Could not update player last-seen timestamp:", error.message);
+}
+
+function nullableString(value: unknown): string | null {
+  return value == null || value === "" ? null : String(value);
 }
 
 function normalize(value: string): string {
