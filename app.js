@@ -237,7 +237,7 @@ function renderPlayerBubble(player, side, fcRatings, position) {
   return '<' + tag + ' class="pitch-player" style="--player-x:' + position.x + '%;--player-y:' + position.y + '%" title="' + safeText(name) + '"' + href + '>' +
     '<span class="player-face-wrap">' + photoMarkup + fallbackMarkup +
     (number !== "" ? '<span class="player-shirt-number">' + safeText(number) + "</span>" : "") + "</span>" +
-    '<span class="pitch-player-name">' + safeText(name) + fcradarProfileLink(fcResult) + "</span>" +
+    '<span class="pitch-player-name">' + safeText(name) + "</span>" +
     '<span class="pitch-player-rating ' + ratingTone + '">' + safeText(displayed || "—") + "</span></' + tag + '>";
 }
 
