@@ -125,6 +125,14 @@ async function lookupPlayer(player: PlayerRequest, apiKey: string): Promise<Rati
 
   const payload = await response.json();
   const candidates = extractPlayers(payload);
+  console.info("FCRadar lookup diagnostics:", {
+    requestedName: player.name,
+    httpStatus: response.status,
+    payloadType: Array.isArray(payload) ? "array" : typeof payload,
+    payloadKeys: payload && typeof payload === "object" ? Object.keys(payload as Record<string, unknown>) : [],
+    candidateCount: candidates.length,
+    firstCandidateKeys: candidates[0] ? Object.keys(candidates[0]) : [],
+  });
   const exact = candidates.filter(candidate =>
     normalize(candidate.name ?? candidate.fullName ?? candidate.shortName ?? "") === normalize(player.name)
   );
@@ -165,20 +173,26 @@ async function lookupPlayer(player: PlayerRequest, apiKey: string): Promise<Rati
   return result;
 }
 
-function extractPlayers(payload: unknown): Record<string, unknown>[] {
-  if (Array.isArray(payload)) return payload as Record<string, unknown>[];
-  if (!payload || typeof payload !== "object") return [];
+function extractPlayers(payload: unknown, depth = 0): Record<string, unknown>[] {
+  if (depth > 4 || !payload || typeof payload !== "object") return [];
+  if (Array.isArray(payload)) {
+    if (payload.length === 0 || payload.every(item => item && typeof item === "object")) {
+      return payload as Record<string, unknown>[];
+    }
+    return [];
+  }
+
   const root = payload as Record<string, unknown>;
-  const data = root.data;
-  if (Array.isArray(root.players)) return root.players as Record<string, unknown>[];
-  if (Array.isArray(root.results)) return root.results as Record<string, unknown>[];
-  if (Array.isArray(root.items)) return root.items as Record<string, unknown>[];
-  if (Array.isArray(data)) return data as Record<string, unknown>[];
-  if (data && typeof data === "object") {
-    const nested = data as Record<string, unknown>;
-    if (Array.isArray(nested.players)) return nested.players as Record<string, unknown>[];
-    if (Array.isArray(nested.results)) return nested.results as Record<string, unknown>[];
-    if (Array.isArray(nested.items)) return nested.items as Record<string, unknown>[];
+  for (const key of ["players", "results", "items", "records", "content", "data"]) {
+    const value = root[key];
+    if (Array.isArray(value)) {
+      const records = value.filter(item => item && typeof item === "object") as Record<string, unknown>[];
+      if (records.length || value.length === 0) return records;
+    }
+    if (value && typeof value === "object") {
+      const nested = extractPlayers(value, depth + 1);
+      if (nested.length) return nested;
+    }
   }
   return [];
 }
