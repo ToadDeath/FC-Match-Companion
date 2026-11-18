@@ -402,7 +402,7 @@ function toCandidateSuggestion(candidate: FCRadarPlayer): NonNullable<RatingResu
       : String(positionValue);
   const rawRating = candidate.overall_rating ?? candidate.overall ?? candidate.ovr ?? candidate.rating;
   const numericRating = Number(rawRating);
-  const slug = name.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+  const slug = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return {
     id: String(id),
