@@ -133,9 +133,20 @@ async function lookupPlayer(player: PlayerRequest, apiKey: string): Promise<Rati
     candidateCount: candidates.length,
     firstCandidateKeys: candidates[0] ? Object.keys(candidates[0]) : [],
   });
-  const exact = candidates.filter(candidate =>
-    normalize(candidate.name ?? candidate.fullName ?? candidate.shortName ?? "") === normalize(player.name)
-  );
+  const exact = candidates.filter(candidate => {
+    const firstLast = [candidate.first_name, candidate.last_name]
+      .filter(value => typeof value === "string" && value.trim())
+      .join(" ");
+    const names = [
+      candidate.name,
+      candidate.fullName,
+      candidate.shortName,
+      candidate.common_name,
+      firstLast,
+    ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+    const requested = normalize(player.name);
+    return names.some(name => normalize(name) === requested);
+  });
 
   let selected: Record<string, unknown> | undefined;
   if (exact.length === 1) {
@@ -154,13 +165,15 @@ async function lookupPlayer(player: PlayerRequest, apiKey: string): Promise<Rati
       status: exact.length > 1 ? "ambiguous" : "not_found",
     };
   } else {
-    const rawRating = selected.overall ?? selected.ovr ?? selected.rating ??
+    const rawRating = selected.overall_rating ?? selected.overall ?? selected.ovr ?? selected.rating ??
       (selected.ratings as Record<string, unknown> | undefined)?.overall;
     const numericRating = Number(rawRating);
     result = {
       rating: Number.isFinite(numericRating) && numericRating > 0 ? numericRating : null,
       status: Number.isFinite(numericRating) && numericRating > 0 ? "matched" : "not_found",
-      playerName: String(selected.name ?? selected.fullName ?? player.name),
+      playerName: String(selected.name ?? selected.common_name ??
+        [selected.first_name, selected.last_name].filter(Boolean).join(" ") ??
+        selected.fullName ?? player.name),
       club: String(
         (selected.club as Record<string, unknown> | undefined)?.name ??
         selected.clubName ?? selected.teamName ?? ""
@@ -169,7 +182,11 @@ async function lookupPlayer(player: PlayerRequest, apiKey: string): Promise<Rati
     };
   }
 
-  ratingCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, result });
+  // Cache successful matches only. Failed or ambiguous lookups should be retried
+  // after data or matching logic changes instead of persisting a false negative.
+  if (result.status === "matched") {
+    ratingCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, result });
+  }
   return result;
 }
 
