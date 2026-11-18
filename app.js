@@ -405,7 +405,7 @@ function renderMatch(match, matchId) {
       <div class="match-source">FotMob match ID <code>${safeText(matchId)}</code></div>
     </div>
     <div class="lineups-heading"><div><span class="stage-kicker">MATCH LINEUPS</span><h3>Starting XI</h3></div><span class="lineup-note">${hasLineup ? (ratingMode === "fc" ? "FC Database ratings" : "FotMob match ratings") : "Lineups may not be published yet"}</span></div>
-    <div class="lineups-grid">
+    <div class="lineup-display">
       ${renderCombinedPitch(homeTeam, awayTeam, homeHeader, awayHeader, fcRatings)}
       <div class="roster-groups">
         <section class="roster-group"><h4>Substitutes</h4><div class="roster-columns">
