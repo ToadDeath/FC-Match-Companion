@@ -154,19 +154,19 @@
 .pitch-player-rating.rating-database{background:#263b4b;color:#dceaf4;border:1px solid #54748c}
 .pitch-player-rating.rating-unavailable{background:#343a40;color:#aeb4b9;border:1px solid #555d64}
 .pitch-player:hover .pitch-player-name{text-decoration:none;color:#fff}
-.roster-rating.rating-exceptional{background:#168fe5;color:#fff}
-.roster-rating.rating-elite{background:#159de8;color:#061d2a}
-.roster-rating.rating-average{background:#f0d34a;color:#302600}
-.roster-rating.rating-poor{background:#e45858;color:#fff}
-.roster-rating.rating-database{background:#263b4b;color:#dceaf4;border:1px solid #54748c}
+.roster-rating.rating-exceptional,.fc-roster-rating.rating-exceptional{background:#168fe5;color:#fff}
+.roster-rating.rating-elite,.fc-roster-rating.rating-elite{background:#159de8;color:#061d2a}
+.roster-rating.rating-average,.fc-roster-rating.rating-average{background:#f0d34a;color:#302600}
+.roster-rating.rating-poor,.fc-roster-rating.rating-poor{background:#e45858;color:#fff}
+.roster-rating.rating-database,.fc-roster-rating.rating-database{background:#263b4b;color:#dceaf4;border:1px solid #54748c}
 
 
 /* FC Database OVR colors */
-.pitch-player-rating.rating-fc-red,.roster-rating.rating-fc-red{background:#e03131;color:#fff;border-color:transparent}
-.pitch-player-rating.rating-fc-orange,.roster-rating.rating-fc-orange{background:#fd7e14;color:#241306;border-color:transparent}
-.pitch-player-rating.rating-fc-yellow,.roster-rating.rating-fc-yellow{background:#fcc419;color:#302600;border-color:transparent}
-.pitch-player-rating.rating-fc-light-green,.roster-rating.rating-fc-light-green{background:#66a80f;color:#fff;border-color:transparent}
-.pitch-player-rating.rating-fc-dark-green,.roster-rating.rating-fc-dark-green{background:#2b8a3e;color:#fff;border-color:transparent}
+.pitch-player-rating.rating-fc-red,.roster-rating.rating-fc-red,.fc-roster-rating.rating-fc-red{background:#e03131;color:#fff;border-color:transparent}
+.pitch-player-rating.rating-fc-orange,.roster-rating.rating-fc-orange,.fc-roster-rating.rating-fc-orange{background:#fd7e14;color:#241306;border-color:transparent}
+.pitch-player-rating.rating-fc-yellow,.roster-rating.rating-fc-yellow,.fc-roster-rating.rating-fc-yellow{background:#fcc419;color:#302600;border-color:transparent}
+.pitch-player-rating.rating-fc-light-green,.roster-rating.rating-fc-light-green,.fc-roster-rating.rating-fc-light-green{background:#66a80f;color:#fff;border-color:transparent}
+.pitch-player-rating.rating-fc-dark-green,.roster-rating.rating-fc-dark-green,.fc-roster-rating.rating-fc-dark-green{background:#2b8a3e;color:#fff;border-color:transparent}
 
 
 
