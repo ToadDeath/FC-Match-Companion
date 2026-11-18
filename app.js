@@ -130,13 +130,13 @@ function getPlayerPitchPositions(team, side) {
   }
   if (positions.size < starters.length) {
     const rows = formationRows.map((count, index) => ({ count, index }));
-    let cursor = 0;
     starters.forEach((player, playerIndex) => {
       if (positions.has(player)) return;
-      let rowIndex = 0, colIndex = 0;
+      let rowIndex = 0, colIndex = playerIndex;
       for (const row of rows) {
-        if (cursor < row.count) { rowIndex = row.index; colIndex = cursor; break; }
-        cursor -= row.count; rowIndex = row.index + 1;
+        if (colIndex < row.count) { rowIndex = row.index; break; }
+        colIndex -= row.count;
+        rowIndex = row.index + 1;
       }
       const count = rows[Math.min(rowIndex, rows.length - 1)]?.count || 1;
       const lineCount = rows.length;
@@ -146,7 +146,6 @@ function getPlayerPitchPositions(team, side) {
         x: side === "home" ? 3 + localX * 45 : 97 - localX * 45,
         y: 7 + localY * 86
       });
-      cursor++;
     });
   }
   return starters.map((player, index) => ({ player, ...(positions.get(player) || { x: side === "home" ? 25 : 75, y: 50 }), index }));
