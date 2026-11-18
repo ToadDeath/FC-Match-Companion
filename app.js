@@ -221,13 +221,35 @@ function fcradarProfileLink(fcResult) {
     : "";
 }
 
+function fotmobRatingClass(value) {
+  if (value === "" || !Number.isFinite(Number(value))) return "rating-unavailable";
+  const rating = Number(value);
+  if (rating >= 9) return "rating-exceptional";
+  if (rating >= 8) return "rating-elite";
+  if (rating >= 7) return "rating-good";
+  if (rating >= 6.5) return "rating-average";
+  if (rating >= 6) return "rating-low";
+  return "rating-poor";
+}
+
+function playerEventMarkup(player) {
+  const minute = player?.timeSubbedOff ?? player?.subbedOff ?? player?.timeSubbedOn ??
+    player?.subbedOn ?? player?.substitutionMinute ?? player?.eventMinute;
+  const eventType = String(player?.eventType || player?.substitutionType || "").toLowerCase();
+  if (minute == null || minute === "") return "";
+  const label = String(minute).replace(/['’]$/, "") + "′";
+  const icon = eventType.includes("red") ? "🟥" : eventType.includes("yellow") ? "🟨" :
+    eventType.includes("sub") || player?.timeSubbedOff != null || player?.subbedOff != null ? "↔" : "";
+  return '<span class="pitch-player-event">' + (icon ? '<i>' + icon + '</i>' : "") + safeText(label) + '</span>';
+}
+
 function renderPlayerBubble(player, side, fcRatings, position) {
   const name = player?.name || player?.localizedName || "Unknown player";
   const number = player?.shirtNumber ?? player?.number ?? player?.shirt ?? "";
   const key = playerKey(player, side), fcResult = fcRatings[key];
   const fcRating = fcResult?.rating === null || fcResult?.rating === undefined ? "" : String(fcResult.rating);
   const displayed = ratingMode === "fotmob" ? playerRating(player) : fcRating;
-  const ratingTone = displayed !== "" && Number(displayed) >= 7 ? "rating-good" : displayed !== "" ? "rating-low" : "rating-unavailable";
+  const ratingTone = ratingMode === "fotmob" ? fotmobRatingClass(displayed) : displayed !== "" ? "rating-database" : "rating-unavailable";
   const photo = playerPhotoUrl(player);
   const photoMarkup = photo ? '<img class="player-face" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : "";
   const fallbackMarkup = '<span class="player-face-fallback" aria-hidden="true" ' + (photo ? "hidden" : "") + '></span>';
@@ -235,10 +257,11 @@ function renderPlayerBubble(player, side, fcRatings, position) {
   const tag = fotmobUrl ? "a" : "div";
   const href = fotmobUrl ? ' href="' + safeText(fotmobUrl) + '" target="_blank" rel="noopener noreferrer" aria-label="Open ' + safeText(name) + ' on FotMob"' : "";
   return '<' + tag + ' class="pitch-player" style="--player-x:' + position.x + '%;--player-y:' + position.y + '%" title="' + safeText(name) + '"' + href + '>' +
-    '<span class="player-face-wrap">' + photoMarkup + fallbackMarkup +
+    playerEventMarkup(player) +
+    '<span class="pitch-player-portrait-row"><span class="player-face-wrap">' + photoMarkup + fallbackMarkup +
     (number !== "" ? '<span class="player-shirt-number">' + safeText(number) + "</span>" : "") + "</span>" +
-    '<span class="pitch-player-name">' + safeText(name) + "</span>" +
-    '<span class="pitch-player-rating ' + ratingTone + '">' + safeText(displayed || "—") + "</span></' + tag + '>";
+    '<span class="pitch-player-rating ' + ratingTone + '">' + safeText(displayed || "—") + "</span></span>" +
+    '<span class="pitch-player-name"><b>' + safeText(number) + '</b> ' + safeText(name) + "</span></' + tag + '>";
 }
 
 function renderRosterPlayer(player, side, fcRatings, kind) {
@@ -247,7 +270,7 @@ function renderRosterPlayer(player, side, fcRatings, kind) {
   const key = playerKey(player, side), fcResult = fcRatings[key];
   const fcRating = fcResult?.rating === null || fcResult?.rating === undefined ? "" : String(fcResult.rating);
   const displayed = ratingMode === "fotmob" ? playerRating(player) : fcRating;
-  const ratingTone = displayed !== "" && Number(displayed) >= 7 ? "rating-good" : displayed !== "" ? "rating-low" : "rating-unavailable";
+  const ratingTone = ratingMode === "fotmob" ? fotmobRatingClass(displayed) : displayed !== "" ? "rating-database" : "rating-unavailable";
   const photo = playerPhotoUrl(player);
   const position = player?.positionName || player?.position || player?.usualPosition || "";
   const minute = player?.timeSubbedOn ?? player?.subbedOn ?? player?.substitutionMinute ?? "";
