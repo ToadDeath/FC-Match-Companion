@@ -309,7 +309,7 @@ function buildSearchNames(name: string): string[] {
   };
   for (const alias of aliases[normalized] || []) queries.push(alias);
 
-  const parts = name.trim().split(/\\s+/).filter(Boolean);
+  const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length > 1) queries.push(parts[parts.length - 1]);
 
   return [...new Set(queries.filter(Boolean))].slice(0, 3);
@@ -330,7 +330,7 @@ function rankCandidates(
   const ranked = candidates.map(candidate => {
     const names = getCandidateNames(candidate).map(normalize);
     const exactName = names.some(name => acceptedNames.has(name));
-    const surname = normalize(player.name.trim().split(/\\s+/).slice(-1)[0] || "");
+    const surname = normalize(player.name.trim().split(/\s+/).slice(-1)[0] || "");
     const surnameOnly = !exactName && surname.length >= 4 && names.some(name =>
       name === surname || name.includes(surname)
     );
