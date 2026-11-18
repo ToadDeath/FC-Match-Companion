@@ -276,46 +276,22 @@ async function loadFcRatings() {
   const lookupMatchId = matchRef.matchId;
   const lookupPromise = (async () => {
     try {
-      // First retrieve all valid cached OVRs in one quick request. This lets
-      // known players appear immediately while only cache misses are resolved.
-      const { data: cacheData, error: cacheError } = await supabase.functions.invoke("match-companion", {
-        body: { action: "ratings-cache", players }
-      });
-      if (cacheError) throw cacheError;
-      if (!cacheData?.ok) throw new Error(cacheData?.error || "Saved FC Database ratings could not be loaded.");
-      if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
-
-      const combinedRatings = { ...(currentMatch.fcRatings || {}), ...(cacheData.ratings || {}) };
-      const missingKeys = new Set(cacheData.missingKeys || []);
-      const missingPlayers = players.filter(player => missingKeys.has(player.key));
-      const cachedCount = players.length - missingPlayers.length;
-
+      // One Edge Function request handles the full lineup. The backend bulk-loads
+      // saved ratings, then sends only cache misses/expired ratings to FCRadar.
       currentMatch = {
         ...currentMatch,
-        fcRatings: { ...combinedRatings },
-        fcRatingsProgress: { completed: cachedCount, total: players.length },
-        fcRatingsStage: missingPlayers.length
-          ? `${cachedCount} saved ratings loaded. Resolving ${missingPlayers.length} players not yet cached.`
-          : "All ratings loaded from the saved cache.",
+        fcRatingsStage: "Checking saved ratings and resolving any players not yet cached.",
       };
       renderMatch(currentMatch.match, currentMatch.matchId);
-      setStatus(
-        missingPlayers.length
-          ? `FC Database: ${cachedCount} of ${players.length} ratings loaded from cache. Resolving the rest...`
-          : `FC Database: all ${players.length} ratings loaded from cache.`,
-        "loading"
-      );
 
-      if (missingPlayers.length) {
-        const { data, error } = await supabase.functions.invoke("match-companion", {
-          body: { action: "ratings", players: missingPlayers }
-        });
-        if (error) throw error;
-        if (!data?.ok) throw new Error(data?.error || "Uncached FC Database ratings could not be resolved.");
-        if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
+      const { data, error } = await supabase.functions.invoke("match-companion", {
+        body: { action: "ratings", players }
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "FC Database ratings could not be loaded.");
+      if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
 
-        Object.assign(combinedRatings, data.ratings || {});
-      }
+      const combinedRatings = { ...(currentMatch.fcRatings || {}), ...(data.ratings || {}) };
 
       currentMatch = {
         ...currentMatch,
