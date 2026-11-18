@@ -232,6 +232,17 @@ function fotmobRatingClass(value) {
   return "rating-poor";
 }
 
+function fcDatabaseRatingClass(value) {
+  if (value === "" || !Number.isFinite(Number(value))) return "rating-unavailable";
+  const rating = Number(value);
+  if (rating >= 81 && rating <= 99) return "rating-fc-dark-green";
+  if (rating >= 71 && rating <= 80) return "rating-fc-light-green";
+  if (rating >= 61 && rating <= 70) return "rating-fc-yellow";
+  if (rating >= 51 && rating <= 60) return "rating-fc-orange";
+  if (rating >= 1 && rating <= 50) return "rating-fc-red";
+  return "rating-unavailable";
+}
+
 function playerEventMarkup(player) {
   const minute = player?.timeSubbedOff ?? player?.subbedOff ?? player?.timeSubbedOn ??
     player?.subbedOn ?? player?.substitutionMinute ?? player?.eventMinute;
@@ -249,7 +260,7 @@ function renderPlayerBubble(player, side, fcRatings, position) {
   const key = playerKey(player, side), fcResult = fcRatings[key];
   const fcRating = fcResult?.rating === null || fcResult?.rating === undefined ? "" : String(fcResult.rating);
   const displayed = ratingMode === "fotmob" ? playerRating(player) : fcRating;
-  const ratingTone = ratingMode === "fotmob" ? fotmobRatingClass(displayed) : displayed !== "" ? "rating-database" : "rating-unavailable";
+  const ratingTone = ratingMode === "fotmob" ? fotmobRatingClass(displayed) : fcDatabaseRatingClass(displayed);
   const photo = playerPhotoUrl(player);
   const photoMarkup = photo ? '<img class="player-face" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : "";
   const fallbackMarkup = '<span class="player-face-fallback" aria-hidden="true" ' + (photo ? "hidden" : "") + '></span>';
@@ -270,7 +281,7 @@ function renderRosterPlayer(player, side, fcRatings, kind) {
   const key = playerKey(player, side), fcResult = fcRatings[key];
   const fcRating = fcResult?.rating === null || fcResult?.rating === undefined ? "" : String(fcResult.rating);
   const displayed = ratingMode === "fotmob" ? playerRating(player) : fcRating;
-  const ratingTone = ratingMode === "fotmob" ? fotmobRatingClass(displayed) : displayed !== "" ? "rating-database" : "rating-unavailable";
+  const ratingTone = ratingMode === "fotmob" ? fotmobRatingClass(displayed) : fcDatabaseRatingClass(displayed);
   const photo = playerPhotoUrl(player);
   const position = player?.positionName || player?.position || player?.usualPosition || "";
   const minute = player?.timeSubbedOn ?? player?.subbedOn ?? player?.substitutionMinute ?? "";
