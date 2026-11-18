@@ -106,7 +106,7 @@ function renderPlayer(player, side, fcRatings = {}) {
   const title = ratingMode === "fc" && fcResult?.status === "ambiguous"
     ? "Multiple FCRadar players share this name; rating not assigned"
     : ratingMode === "fc" && !fcRating
-      ? "No confident FC 27 player match found"
+      ? "No confident FC Database player match found"
       : "";
   return `
     <div class="player-row">
@@ -179,7 +179,7 @@ function renderMatch(match, matchId) {
       </div>
       <div class="match-source">FotMob match ID <code>${safeText(matchId)}</code></div>
     </div>
-    <div class="lineups-heading"><div><span class="stage-kicker">MATCH LINEUPS</span><h3>Starting XI</h3></div><span class="lineup-note">${hasLineup ? (ratingMode === "fc" ? "FC 27 Career Mode overall ratings" : "FotMob match ratings") : "Lineups may not be published yet"}</span></div>
+    <div class="lineups-heading"><div><span class="stage-kicker">MATCH LINEUPS</span><h3>Starting XI</h3></div><span class="lineup-note">${hasLineup ? (ratingMode === "fc" ? "FC Database ratings" : "FotMob match ratings") : "Lineups may not be published yet"}</span></div>
     <div class="lineups-grid">
       ${renderTeam(homeTeam, "home", homeHeader, fcRatings)}
       ${renderTeam(awayTeam, "away", awayHeader, fcRatings)}
@@ -187,11 +187,11 @@ function renderMatch(match, matchId) {
     ${!hasLineup ? '<p class="lineup-footnote">The match details loaded successfully, but FotMob has not supplied the lineups in this response. Try again once lineups are available.</p>' : ""}
     <p class="rating-footnote">${ratingMode === "fc"
       ? (currentMatch.fcRatingsLoading
-          ? "Looking up FC 27 Career Mode ratings from FCRadar..."
+          ? "Looking up FC Database ratings from FCRadar..."
           : currentMatch.fcRatingsLoaded
-            ? "FC 27 Career Mode overall ratings from FCRadar. A dash means no confident player match was found."
-            : "Select FC OVR to load FC 27 Career Mode ratings from FCRadar.")
-      : "FotMob match ratings are displayed when available. Switch to FC OVR to see FC 27 Career Mode ratings."}</p>
+            ? "FC Database ratings from FCRadar. A dash means no confident player match was found."
+            : "Select FC Database to load FC Database ratings from FCRadar.")
+      : "FotMob match ratings are displayed when available. Switch to FC Database to see FC Database ratings."}</p>
   `;
 
   matchContent.classList.remove("hidden");
@@ -215,7 +215,7 @@ async function loadFcRatings() {
 
   currentMatch = { ...currentMatch, fcRatingsLoading: true };
   renderMatch(currentMatch.match, currentMatch.matchId);
-  setStatus("Looking up FC 27 Career Mode ratings...", "loading");
+  setStatus("Looking up FC Database ratings...", "loading");
 
   fcLookupPromise = (async () => {
     try {
@@ -234,13 +234,13 @@ async function loadFcRatings() {
       };
       renderMatch(currentMatch.match, currentMatch.matchId);
       const matched = Object.values(currentMatch.fcRatings).filter(item => item?.rating !== null && item?.rating !== undefined).length;
-      setStatus(`FC 27 ratings loaded: ${matched} of ${players.length} players matched.`, "success");
+      setStatus(`FC Database ratings loaded: ${matched} of ${players.length} players matched.`, "success");
     } catch (error) {
       if (currentMatch?.matchId === matchRef.matchId) {
         currentMatch = { ...currentMatch, fcRatingsLoading: false };
         renderMatch(currentMatch.match, currentMatch.matchId);
       }
-      setStatus(error.message || "Unable to load FC 27 ratings.", "error");
+      setStatus(error.message || "Unable to load FC Database ratings.", "error");
     } finally {
       fcLookupPromise = null;
     }
