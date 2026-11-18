@@ -67,6 +67,28 @@ export default {
         return Response.json({ ok: true, matchId, matchData: await response.json() });
       }
 
+      if (body.action === "ratings-resolve") {
+        if (!Array.isArray(body.players) || body.players.length > 8) {
+          return Response.json({ ok: false, error: "A batch of up to 8 uncached players is required." }, { status: 400 });
+        }
+
+        const players = body.players as PlayerRequest[];
+        if (!players.length) return Response.json({ ok: true, ratings: {}, resolvedCount: 0 });
+
+        const apiKey = Deno.env.get("FCRADAR_API_KEY");
+        if (!apiKey) {
+          return Response.json({ ok: false, error: "The FCRadar API key is not configured in Supabase." }, { status: 500 });
+        }
+
+        const ratings: Record<string, RatingResult> = {};
+        await Promise.all(players.map(async player => {
+          if (!player?.key || !player?.name) return;
+          ratings[player.key] = await lookupPlayer(player, apiKey, ctx.supabaseAdmin);
+        }));
+
+        return Response.json({ ok: true, ratings, resolvedCount: players.length });
+      }
+
       if (body.action === "ratings") {
         if (!Array.isArray(body.players) || body.players.length > 60) {
           return Response.json({ ok: false, error: "Up to 60 players are required." }, { status: 400 });
@@ -263,7 +285,7 @@ function isLikelyNationalTeamName(value: string): boolean {
   const name = normalize(value);
   const countries = new Set([
     "argentina", "australia", "austria", "belgium", "brazil", "canada",
-    "chile", "china", "colombia", "croatia", "denmark", "ecuador",
+    "chile", "china", "colombia", "croatia", "denmark", "ecuador", "haiti",
     "england", "france", "germany", "ghana", "italy", "japan", "mexico",
     "morocco", "netherlands", "nigeria", "norway", "paraguay", "peru",
     "poland", "portugal", "scotland", "senegal", "serbia", "southkorea",
@@ -617,10 +639,10 @@ function getPositionMatchScore(requested: string, candidateValue: unknown): numb
   if (!candidates.length) return 0;
 
   const group = (position: string) => {
-    if (["GK", "GOALKEEPER"].includes(position)) return "GK";
-    if (["CB", "LCB", "RCB", "LB", "RB", "LWB", "RWB", "DEF", "DEFENDER"].includes(position)) return "DEF";
-    if (["CDM", "CM", "CAM", "LM", "RM", "MID", "MIDFIELDER"].includes(position)) return "MID";
-    if (["LW", "RW", "LF", "RF", "ST", "CF", "ATT", "ATTACKER", "FORWARD"].includes(position)) return "ATT";
+    if (["GK", "GOALKEEPER", "G"].includes(position)) return "GK";
+    if (["CB", "LCB", "RCB", "LB", "RB", "LWB", "RWB", "DEF", "DEFENDER", "D"].includes(position)) return "DEF";
+    if (["CDM", "CM", "CAM", "LM", "RM", "MID", "MIDFIELDER", "M"].includes(position)) return "MID";
+    if (["LW", "RW", "LF", "RF", "ST", "CF", "ATT", "ATTACKER", "FORWARD", "F"].includes(position)) return "ATT";
     return position;
   };
 
@@ -706,7 +728,11 @@ function normalizePosition(value: unknown): string {
   const raw = Array.isArray(value) ? value.join(" ") : String(value ?? "");
   const token = raw.toUpperCase().replace(/[^A-Z]/g, "");
   const aliases: Record<string, string> = {
-    GOALKEEPER: "GK", CENTERBACK: "CB", CENTREBACK: "CB",
+    G: "GK", GOALKEEPER: "GK", GOALIE: "GK",
+    D: "DEF", DEFENDER: "DEF",
+    M: "MID", MIDFIELDER: "MID",
+    F: "ATT", FORWARD: "ATT", ATTACKER: "ATT",
+    CENTERBACK: "CB", CENTREBACK: "CB",
     LEFTBACK: "LB", RIGHTBACK: "RB", CENTRALMIDFIELDER: "CM",
     DEFENSIVEMIDFIELDER: "CDM", ATTACKINGMIDFIELDER: "CAM",
     LEFTWINGER: "LW", RIGHTWINGER: "RW", STRIKER: "ST",
