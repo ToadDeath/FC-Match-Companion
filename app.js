@@ -254,8 +254,14 @@ function playerEventMarkup(player) {
   return '<span class="pitch-player-event">' + (icon ? '<i>' + icon + '</i>' : "") + safeText(label) + '</span>';
 }
 
+function playerLastName(player) {
+  const fullName = String(player?.name || player?.localizedName || "Unknown player").trim();
+  const parts = fullName.split(/\\s+/).filter(Boolean);
+  return parts.length > 1 ? parts[parts.length - 1] : fullName;
+}
+
 function renderPlayerBubble(player, side, fcRatings, position) {
-  const name = player?.name || player?.localizedName || "Unknown player";
+  const name = playerLastName(player);
   const number = player?.shirtNumber ?? player?.number ?? player?.shirt ?? "";
   const key = playerKey(player, side), fcResult = fcRatings[key];
   const fcRating = fcResult?.rating === null || fcResult?.rating === undefined ? "" : String(fcResult.rating);
@@ -272,7 +278,7 @@ function renderPlayerBubble(player, side, fcRatings, position) {
     '<span class="pitch-player-portrait-row"><span class="player-face-wrap">' + photoMarkup + fallbackMarkup +
     (number !== "" ? '<span class="player-shirt-number">' + safeText(number) + "</span>" : "") + "</span>" +
     '<span class="pitch-player-rating ' + ratingTone + '">' + safeText(displayed || "—") + "</span></span>" +
-    '<span class="pitch-player-name"><b>' + safeText(number) + '</b> ' + safeText(name) + "</span></' + tag + '>";
+    '<span class="pitch-player-name">' + (number !== "" ? '<b>' + safeText(number) + '</b> ' : "") + safeText(name) + "</span></' + tag + '>";
 }
 
 function renderRosterPlayer(player, side, fcRatings, kind) {
