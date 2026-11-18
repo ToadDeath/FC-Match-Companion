@@ -54,6 +54,11 @@ function getPlayers(team) {
   return Array.isArray(players) ? players : [];
 }
 
+function getSubstitutes(team) {
+  const substitutes = team?.subs || team?.substitutes || team?.bench || [];
+  return Array.isArray(substitutes) ? substitutes : [];
+}
+
 function playerRating(player) {
   const value = player?.performance?.rating ?? player?.rating ??
     player?.stats?.rating ?? player?.performance?.fotmobRating;
@@ -77,21 +82,19 @@ function collectPlayers(match) {
   const away = getTeamLineup(lineup, "away", awayHeader.id || general.awayTeam?.id);
   const homeName = homeHeader.name || home.name || "Home";
   const awayName = awayHeader.name || away.name || "Away";
+  const collectTeamPlayers = (team, side, teamName) => [
+    ...getPlayers(team),
+    ...getSubstitutes(team),
+  ].map(player => ({
+    key: playerKey(player, side),
+    fotmobId: player?.id ?? player?.playerId ?? null,
+    name: player?.name || player?.localizedName || "",
+    position: player?.positionName || player?.position || player?.usualPosition || "",
+    team: teamName,
+  }));
   return [
-    ...getPlayers(home).map(player => ({
-      key: playerKey(player, "home"),
-      fotmobId: player?.id ?? player?.playerId ?? null,
-      name: player?.name || player?.localizedName || "",
-      position: player?.positionName || player?.position || player?.usualPosition || "",
-      team: homeName,
-    })),
-    ...getPlayers(away).map(player => ({
-      key: playerKey(player, "away"),
-      fotmobId: player?.id ?? player?.playerId ?? null,
-      name: player?.name || player?.localizedName || "",
-      position: player?.positionName || player?.position || player?.usualPosition || "",
-      team: awayName,
-    })),
+    ...collectTeamPlayers(home, "home", homeName),
+    ...collectTeamPlayers(away, "away", awayName),
   ].filter(player => player.name);
 }
 
@@ -120,22 +123,28 @@ function renderPlayer(player, side, fcRatings = {}) {
 
 function renderTeam(team, side, headerTeam, fcRatings) {
   const starters = getPlayers(team);
+  const substitutes = getSubstitutes(team);
   const teamName = team?.name || headerTeam?.name ||
     (side === "home" ? "Home team" : "Away team");
   const crest = headerTeam?.imageUrl || team?.imageUrl || "";
   const formation = team?.formation || "";
-  const playersHtml = starters.length
+  const startersHtml = starters.length
     ? starters.map(player => renderPlayer(player, side, fcRatings)).join("")
     : '<p class="lineup-empty">FotMob has not provided a starting lineup for this team yet.</p>';
+  const substitutesHtml = substitutes.length
+    ? substitutes.map(player => renderPlayer(player, side, fcRatings)).join("")
+    : '<p class="lineup-empty">FotMob has not provided the substitutes for this team yet.</p>';
 
   return `
     <section class="team-lineup">
       <div class="team-heading">
         ${crest ? `<img class="team-crest" src="${safeText(crest)}" alt="" loading="lazy">` : '<span class="team-crest-placeholder"></span>'}
         <div class="team-heading-copy"><h3>${safeText(teamName)}</h3><span>${safeText(formation || (starters.length ? "Starting lineup" : "Lineup unavailable"))}</span></div>
-        <span class="player-count">${starters.length ? `${starters.length} players` : ""}</span>
+        <span class="player-count">${starters.length} starters · ${substitutes.length} subs</span>
       </div>
-      <div class="player-list">${playersHtml}</div>
+      <div class="player-list">${startersHtml}</div>
+      <div class="player-section-heading">SUBSTITUTES</div>
+      <div class="player-list">${substitutesHtml}</div>
     </section>`;
 }
 
