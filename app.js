@@ -193,6 +193,24 @@ function renderMatch(match, matchId) {
         return `${player.name}${result?.status === "ambiguous" ? " (ambiguous match)" : ""}`;
       }).join(", ")}.`
     : "";
+  const candidateDiagnosticsHtml = unmatchedPlayers.map(player => {
+    const result = fcRatings[player.key];
+    const suggestions = result?.suggestions || [];
+    if (!suggestions.length) return "";
+    const fotmobSlug = player.name.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+      .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const fotmobUrl = player.fotmobId
+      ? `https://www.fotmob.com/players/${encodeURIComponent(player.fotmobId)}/${fotmobSlug}`
+      : "";
+    return `<details class="candidate-diagnostics">
+      <summary>Possible matches for ${safeText(player.name)} (${suggestions.length})</summary>
+      <div class="candidate-diagnostics-links">${fotmobUrl ? `<a href="${fotmobUrl}" target="_blank" rel="noopener noreferrer">Open FotMob profile</a>` : ""}</div>
+      ${suggestions.map(candidate => `<div class="candidate-diagnostic-row">
+        <span><strong>${safeText(candidate.name)}</strong><small>${safeText(candidate.club || "Club unavailable")} · ${safeText(candidate.position || "Position unavailable")}${candidate.rating ? ` · ${candidate.rating} OVR` : ""}</small></span>
+        <a href="${safeText(candidate.url)}" target="_blank" rel="noopener noreferrer">FCRadar ↗</a>
+      </div>`).join("")}
+    </details>`;
+  }).join("");
 
   matchContent.innerHTML = `
     <div class="match-summary">
@@ -226,6 +244,7 @@ function renderMatch(match, matchId) {
       : ratingMode === "fc"
         ? "FC Database ratings are retrieved from FCRadar."
         : "FotMob match ratings are displayed by default. FC Database ratings are prepared in the background."}</p>
+    ${currentMatch.fcRatingsLoaded ? candidateDiagnosticsHtml : ""}
   `;
 
   matchContent.classList.remove("hidden");
