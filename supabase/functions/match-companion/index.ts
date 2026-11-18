@@ -21,6 +21,7 @@ interface RatingResult {
   club?: string;
   playerId?: string | number;
   source?: "cache" | "fcradar";
+  suggestions?: Array<{ id: string; name: string; club: string; position: string; rating: number | null; url: string }>;
 }
 
 type FCRadarPlayer = Record<string, unknown>;
@@ -243,7 +244,7 @@ async function lookupPlayer(
 async function findFCRadarPlayer(
   player: PlayerRequest,
   apiKey: string,
-): Promise<{ status: "matched" | "not_found" | "ambiguous"; player?: FCRadarPlayer; rating: number | null; source?: string }> {
+): Promise<{ status: "matched" | "not_found" | "ambiguous"; player?: FCRadarPlayer; rating: number | null; source?: string; suggestions?: RatingResult["suggestions"] }> {
   const queryNames = buildSearchNames(player.name);
   const allCandidates = new Map<string, FCRadarPlayer>();
 
@@ -298,7 +299,15 @@ async function findFCRadarPlayer(
     status: ranked.ambiguous ? "ambiguous" : "not_found",
     fotmobId: player.fotmobId ?? null,
   });
-  return { rating: null, status: ranked.ambiguous ? "ambiguous" : "not_found" };
+  const suggestions = [...allCandidates.values()]
+    .map(toCandidateSuggestion)
+    .filter((item): item is NonNullable<RatingResult["suggestions"]>[number] => item !== null)
+    .slice(0, 8);
+  return {
+    rating: null,
+    status: ranked.ambiguous ? "ambiguous" : "not_found",
+    suggestions,
+  };
 }
 
 function buildSearchNames(name: string): string[] {
@@ -376,6 +385,33 @@ function rankCandidates(
     return { selected: first.candidate, source: first.source, ambiguous: false };
   }
   return { ambiguous: true };
+}
+
+function toCandidateSuggestion(candidate: FCRadarPlayer): NonNullable<RatingResult["suggestions"]>[number] | null {
+  const id = candidate.id ?? candidate.playerId;
+  if (id == null) return null;
+  const name = getCandidateNames(candidate)[0] || "Unknown player";
+  const club = getCandidateClub(candidate);
+  const positionValue = candidate.position ?? candidate.positions ?? candidate.primaryPosition ?? "";
+  const position = Array.isArray(positionValue)
+    ? positionValue.map(item => typeof item === "object" && item
+      ? String((item as Record<string, unknown>).code ?? (item as Record<string, unknown>).name ?? "")
+      : String(item)).filter(Boolean).join(", ")
+    : typeof positionValue === "object" && positionValue
+      ? String((positionValue as Record<string, unknown>).code ?? (positionValue as Record<string, unknown>).name ?? "")
+      : String(positionValue);
+  const rawRating = candidate.overall_rating ?? candidate.overall ?? candidate.ovr ?? candidate.rating;
+  const numericRating = Number(rawRating);
+  const slug = name.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return {
+    id: String(id),
+    name,
+    club,
+    position,
+    rating: Number.isFinite(numericRating) && numericRating > 0 ? Math.round(numericRating) : null,
+    url: `https://fcradar.gg/${GAME_CODE}/players/latest/${slug}/${encodeURIComponent(String(id))}`,
+  };
 }
 
 function getCandidateNames(candidate: FCRadarPlayer): string[] {
