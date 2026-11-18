@@ -293,10 +293,10 @@ function renderRosterPlayer(player, side, fcRatings, kind) {
     ? '<a class="roster-player-link" href="' + safeText(fotmobUrl) + '" target="_blank" rel="noopener noreferrer">' + safeText(name) + '</a>'
     : safeText(name);
   return '<div class="roster-player ' + kind + '">' +
-    '<span class="roster-number">' + safeText(number || "·") + "</span>" +
     (photo ? '<img class="roster-face" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="roster-face roster-face-empty"></span>') +
-    '<span class="roster-copy"><strong>' + nameMarkup + fcradarProfileLink(fcResult) + '</strong><small>' + safeText(position) + (detail ? ' · ' + detail : "") + '</small></span>' +
-    '<span class="roster-rating ' + ratingTone + '">' + safeText(displayed || "—") + "</span></div>";
+    '<span class="roster-rating ' + ratingTone + '">' + safeText(displayed || "—") + "</span>" +
+    '<span class="roster-number">' + safeText(number || "·") + "</span>" +
+    '<span class="roster-copy"><strong>' + nameMarkup + fcradarProfileLink(fcResult) + '</strong><small>' + safeText(position) + (detail ? ' · ' + detail : "") + "</small></span></div>";
 }
 
 function renderRosterColumn(players, side, fcRatings, kind) {
