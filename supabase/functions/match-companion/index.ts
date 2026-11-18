@@ -743,7 +743,7 @@ function normalizePosition(value: unknown): string {
   const raw = Array.isArray(value) ? value.join(" ") : String(value ?? "");
   const token = raw.toUpperCase().replace(/[^A-Z]/g, "");
   const aliases: Record<string, string> = {
-    G: "GK", GOALKEEPER: "GK", GOALIE: "GK",
+    G: "GK", GOALKEEPER: "GK", GOALIE: "GK", KEEPER: "GK",
     D: "DEF", DEFENDER: "DEF",
     M: "MID", MIDFIELDER: "MID",
     F: "ATT", FORWARD: "ATT", ATTACKER: "ATT",
