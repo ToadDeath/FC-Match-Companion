@@ -508,6 +508,13 @@ async function findFCRadarPlayer(
     candidateCount: allCandidates.size,
     status: ranked.ambiguous ? "ambiguous" : "not_found",
     fotmobId: player.fotmobId ?? null,
+    candidateDiagnostics: [...allCandidates.values()].slice(0, 8).map(candidate => ({
+      id: candidate.id ?? candidate.playerId ?? null,
+      name: getCandidateNames(candidate)[0] || null,
+      club: getCandidateClub(candidate) || null,
+      position: candidate.position ?? candidate.positions ?? candidate.primaryPosition ?? null,
+      rating: candidate.overall_rating ?? candidate.overall ?? candidate.ovr ?? candidate.rating ?? null,
+    })),
   });
   const suggestions = [...allCandidates.values()]
     .map(toCandidateSuggestion)
@@ -565,14 +572,17 @@ function rankCandidates(
     const positionScore = getPositionMatchScore(requestedPosition, candidatePositionValue);
     const hasCandidatePosition = positionTokens(candidatePositionValue).length > 0;
     const positionConflict = Boolean(requestedPosition && hasCandidatePosition && positionScore === 0);
+    const exactClubMatch = Boolean(requestedClub && candidateClub && requestedClub === candidateClub);
 
-    // Never let a surname-only match through without both club and position.
+    // Surname-only matches still require both club and position confirmation.
     if (surnameOnly && (!clubMatch || positionScore === 0)) return null;
-    // A position from a different playing unit is a hard rejection.
-    if (positionConflict) return null;
+    // Exact name plus exact club is stronger identity evidence than a potentially
+    // stale or role-specific position label from FotMob. Keep position conflicts
+    // as a ranking penalty rather than rejecting an otherwise unique player.
+    if (positionConflict && !(exactName && clubMatch)) return null;
 
     const score = (exactName ? 100 : 45) +
-      (clubMatch ? 45 : 0) +
+      (exactClubMatch ? 60 : clubMatch ? 40 : 0) +
       positionScore;
     return {
       candidate,
