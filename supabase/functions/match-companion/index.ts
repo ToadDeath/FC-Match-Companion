@@ -67,43 +67,46 @@ export default {
         return Response.json({ ok: true, matchId, matchData: await response.json() });
       }
 
-      if (body.action === "ratings-cache") {
-        if (!Array.isArray(body.players) || body.players.length > 60) {
-          return Response.json({ ok: false, error: "A lineup of up to 60 players is required." }, { status: 400 });
-        }
-
-        const players = body.players as PlayerRequest[];
-        const { ratings, missingKeys } = await getCachedRatings(players, ctx.supabaseAdmin);
-        return Response.json({ ok: true, ratings, missingKeys });
-      }
-
       if (body.action === "ratings") {
-        const apiKey = Deno.env.get("FCRADAR_API_KEY");
-        if (!apiKey) {
-          return Response.json({ ok: false, error: "The FCRadar API key is not configured in Supabase." }, { status: 500 });
-        }
-
         if (!Array.isArray(body.players) || body.players.length > 60) {
           return Response.json({ ok: false, error: "Up to 60 players are required." }, { status: 400 });
         }
 
         const players = body.players as PlayerRequest[];
-        const ratings: Record<string, RatingResult> = {};
-        let nextIndex = 0;
 
-        // This action receives only cache misses from the frontend. Resolve those
-        // players concurrently without making cached players wait on slow searches.
-        async function worker() {
-          while (nextIndex < players.length) {
-            const index = nextIndex++;
-            const player = players[index];
-            if (!player?.key || !player?.name) continue;
-            ratings[player.key] = await lookupPlayer(player, apiKey, ctx.supabaseAdmin);
+        // Check the entire lineup against Supabase in bulk first. Cached players
+        // are returned immediately from the database; only misses reach FCRadar.
+        const { ratings, missingKeys } = await getCachedRatings(players, ctx.supabaseAdmin);
+        const missingKeySet = new Set(missingKeys);
+        const missingPlayers = players.filter(player => missingKeySet.has(player.key));
+
+        // A fully cached lineup does not need an FCRadar API key or any FCRadar calls.
+        if (missingPlayers.length) {
+          const apiKey = Deno.env.get("FCRADAR_API_KEY");
+          if (!apiKey) {
+            return Response.json({ ok: false, error: "The FCRadar API key is not configured in Supabase." }, { status: 500 });
           }
+
+          let nextIndex = 0;
+          async function worker() {
+            while (nextIndex < missingPlayers.length) {
+              const index = nextIndex++;
+              const player = missingPlayers[index];
+              if (!player?.key || !player?.name) continue;
+              ratings[player.key] = await lookupPlayer(player, apiKey, ctx.supabaseAdmin);
+            }
+          }
+
+          // Resolve only uncached/expired/unmapped players, concurrently.
+          await Promise.all(Array.from({ length: Math.min(8, missingPlayers.length) }, () => worker()));
         }
 
-        await Promise.all(Array.from({ length: Math.min(8, players.length) }, () => worker()));
-        return Response.json({ ok: true, ratings });
+        return Response.json({
+          ok: true,
+          ratings,
+          cachedCount: players.length - missingPlayers.length,
+          resolvedCount: missingPlayers.length,
+        });
       }
 
       return Response.json({ ok: false, error: "Unknown action." }, { status: 400 });
