@@ -160,3 +160,11 @@
 .pitch-player-rating.rating-low,.roster-rating.rating-low,.team-average-rating.rating-low{
   background:#ff9d42;color:#2b1807;border-color:transparent;
 }
+
+
+/* Compact match loader: give the lineup and match data the vertical space */
+.hero{max-width:900px;padding:22px 0 26px}
+.url-form{margin-top:0}
+@media(max-width:650px){
+  .hero{padding:16px 0 19px}
+}
