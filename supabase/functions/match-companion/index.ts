@@ -67,6 +67,21 @@ export default {
         return Response.json({ ok: true, matchId, matchData: await response.json() });
       }
 
+      if (body.action === "ratings-cache") {
+        if (!Array.isArray(body.players) || body.players.length > 60) {
+          return Response.json({ ok: false, error: "Up to 60 players are required." }, { status: 400 });
+        }
+
+        const players = body.players as PlayerRequest[];
+        const { ratings, missingKeys } = await getCachedRatings(players, ctx.supabaseAdmin);
+        return Response.json({
+          ok: true,
+          ratings,
+          missingKeys,
+          cachedCount: players.length - missingKeys.length,
+        });
+      }
+
       if (body.action === "ratings-resolve") {
         if (!Array.isArray(body.players) || body.players.length > 8) {
           return Response.json({ ok: false, error: "A batch of up to 8 uncached players is required." }, { status: 400 });
