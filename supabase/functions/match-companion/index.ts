@@ -72,8 +72,8 @@ export default {
           return Response.json({ ok: false, error: "The FCRadar API key is not configured in Supabase." }, { status: 500 });
         }
 
-        if (!Array.isArray(body.players) || body.players.length > 30) {
-          return Response.json({ ok: false, error: "A lineup of up to 30 players is required." }, { status: 400 });
+        if (!Array.isArray(body.players) || body.players.length > 60) {
+          return Response.json({ ok: false, error: "A lineup of up to 60 players is required." }, { status: 400 });
         }
 
         const players = body.players as PlayerRequest[];
