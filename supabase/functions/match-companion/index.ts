@@ -86,8 +86,7 @@ export default {
             const index = nextIndex++;
             const player = players[index];
             if (!player?.key || !player?.name) continue;
-            const enrichedPlayer = await enrichFotMobPlayerContext(player);
-            ratings[player.key] = await lookupPlayer(enrichedPlayer, apiKey, ctx.supabaseAdmin);
+            ratings[player.key] = await lookupPlayer(player, apiKey, ctx.supabaseAdmin);
           }
         }
 
@@ -245,7 +244,10 @@ async function lookupPlayer(
 
   // Only players without a verified ID mapping need name-based discovery.
   if (!fcradarPlayer) {
-    const lookup = await findFCRadarPlayer(player, apiKey);
+    // Only new/unmapped players need FotMob profile enrichment. Cached ratings
+    // and previously verified FCRadar IDs should avoid this extra network call.
+    const enrichedPlayer = await enrichFotMobPlayerContext(player);
+    const lookup = await findFCRadarPlayer(enrichedPlayer, apiKey);
     if (lookup.status !== "matched" || !lookup.player) return lookup;
     fcradarPlayer = lookup.player;
     identitySource = lookup.source || "fcradar_name_club_position";
