@@ -115,10 +115,8 @@ export default {
 };
 
 /**
- * International match lineups often identify the player's team as the country
- * (for example, "Mexico") and omit their playing position. Hydrate missing
- * context from FotMob's player profile so matching uses the player's actual
- * club and position instead of the national team.
+ * Bulk-load valid identity mappings and unexpired ratings before any external
+ * player lookups. This keeps cache hits fast and isolates cache misses.
  */
 async function getCachedRatings(
   players: PlayerRequest[],
@@ -188,6 +186,12 @@ async function getCachedRatings(
   return { ratings, missingKeys };
 }
 
+/**
+ * International match lineups often identify the player's team as the country
+ * (for example, "Mexico") and omit their playing position. Hydrate missing
+ * context from FotMob's player profile so matching uses the player's actual
+ * club and position instead of the national team.
+ */
 async function enrichFotMobPlayerContext(player: PlayerRequest): Promise<PlayerRequest> {
   if (!player.fotmobId) return player;
 
