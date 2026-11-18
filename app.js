@@ -345,7 +345,7 @@ async function loadFcRatings() {
         fcRatings: combinedRatings,
         fcRatingsLoaded: true,
         fcRatingsLoading: false,
-        fcRatingsProgress: { completed: players.length, total: players.length },
+        fcRatingsProgress: { matched: players.filter(player => combinedRatings[player.key]?.rating !== null && combinedRatings[player.key]?.rating !== undefined).length, total: players.length },
       };
       renderMatch(currentMatch.match, currentMatch.matchId);
       const matched = Object.values(combinedRatings)
