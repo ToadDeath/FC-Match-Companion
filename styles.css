@@ -114,3 +114,42 @@
 @media(max-width:700px){.combined-pitch{aspect-ratio:1.2}.combined-pitch-headings{padding:9px 10px}.pitch-team-label{font-size:11px;gap:5px}.pitch-team-label img{width:20px;height:20px}.pitch-team-label small{font-size:9px}.pitch-player{width:54px;gap:2px}.player-face-wrap{width:32px;height:32px}.pitch-player-name{max-width:57px;font-size:8px;padding:2px 3px}.pitch-player-rating{font-size:9px;min-width:22px;padding:1px 3px}.player-shirt-number{min-width:13px;height:13px;font-size:8px}.substitutes-grid{grid-template-columns:1fr;gap:10px}}
 @media(min-width:701px) and (max-width:900px){.pitch-player{width:62px}.player-face-wrap{width:36px;height:36px}.pitch-player-name{max-width:64px;font-size:8px}}
 .player-face-fallback[hidden]{display:none!important}
+
+
+/* FotMob-style matchday roster panels */
+.combined-pitch{
+  background:repeating-linear-gradient(90deg,transparent 0,transparent 11.1%,#ffffff05 11.1%,#ffffff05 22.2%),#303030;
+}
+.pitch-boundary{border-color:#ffffff48}
+.pitch-halfway,.pitch-center-circle,.pitch-box-left,.pitch-box-right,.pitch-six-left,.pitch-six-right{border-color:#ffffff35}
+.pitch-center-spot{background:#ffffff75}
+.pitch-team-label{gap:10px}
+.team-average-rating{
+  display:inline-flex;align-items:center;justify-content:center;min-width:27px;height:20px;padding:0 6px;
+  border-radius:10px;background:#25c875;color:#082317;font:700 10px "Space Grotesk",sans-serif;
+}
+.team-average-rating.away-rating{background:#ff9d42;color:#2a1706}
+.roster-groups{display:grid;gap:14px;margin-top:14px}
+.roster-group{overflow:hidden;border:1px solid #293b47;border-radius:10px;background:#101a23}
+.roster-group>h4{margin:0;padding:13px 15px 10px;text-align:center;border-bottom:1px solid #ffffff0c;
+  color:#edf2f5;font:600 12px "Space Grotesk",sans-serif}
+.roster-columns{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;padding:4px 15px 8px}
+.roster-list{min-width:0}
+.roster-player{display:flex;align-items:center;gap:9px;min-height:48px;padding:5px 2px;border-bottom:1px solid #ffffff0d}
+.roster-player:last-child{border-bottom:0}
+.roster-number{width:18px;flex:none;text-align:center;color:#8998a2;font:600 10px "Space Grotesk",sans-serif}
+.roster-face{width:29px;height:29px;flex:none;object-fit:cover;object-position:top center;border-radius:50%;background:#26343c}
+.roster-face-empty{display:block;background:#39434a}
+.roster-copy{display:block;min-width:0;flex:1}
+.roster-copy strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e9eef1;font-size:10px;font-weight:700}
+.roster-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px;color:#8d9ba5;font-size:9px}
+.roster-rating{min-width:27px;padding:4px 5px;border-radius:10px;background:#ff9d42;color:#2b1807;text-align:center;font:700 10px "Space Grotesk",sans-serif}
+.roster-rating.rating-unavailable{background:#ffffff0d;color:#85939d}
+.roster-player.sub .roster-copy small{color:#9aa8b1}
+.roster-player.sub .roster-copy small:empty{display:none}
+.roster-player.unavailable .roster-copy small{color:#a1aab0}
+@media(max-width:700px){
+  .roster-columns{grid-template-columns:1fr;padding:3px 12px 7px;gap:0}
+  .roster-player{min-height:46px}
+  .pitch-team-label small{display:none}
+}
