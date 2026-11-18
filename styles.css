@@ -77,3 +77,25 @@
 .candidate-diagnostic-row small{display:block;margin-top:3px;color:#8f9faa;font-size:9px;line-height:1.5}
 .candidate-diagnostic-row>a{white-space:nowrap;flex:none}
 .candidate-diagnostics-empty{margin:0;padding:8px 12px 12px;color:#9eacb5;font-size:10px;line-height:1.6}
+
+/* FotMob-inspired formation view */
+.lineups-grid{align-items:start;gap:18px}.team-lineup{background:#101a23;border-color:#2b3d49}
+.team-pitch{position:relative;isolation:isolate;overflow:hidden;aspect-ratio:.76;width:100%;background:repeating-linear-gradient(0deg,transparent 0,transparent 11.1%,#ffffff08 11.1%,#ffffff08 22.2%),linear-gradient(145deg,#286d4c,#205d42 55%,#1d563d);border-bottom:1px solid #ffffff18}
+.team-pitch:before{content:"";position:absolute;inset:8px;border:1px solid #ffffff72;pointer-events:none}
+.pitch-mark{position:absolute;pointer-events:none;border-color:#ffffff72;border-style:solid;z-index:0}.pitch-halfway{left:8px;right:8px;top:50%;border-width:1px 0 0}
+.pitch-center-circle{width:24%;aspect-ratio:1;border-width:1px;border-radius:50%;left:38%;top:50%;transform:translateY(-50%)}.pitch-center-spot{width:4px;height:4px;border:0;border-radius:50%;background:#ffffffa0;left:calc(50% - 2px);top:calc(50% - 2px)}
+.pitch-box-top,.pitch-box-bottom{left:25%;width:50%;height:14%;border-width:0 1px 1px}.pitch-box-top{top:8px}.pitch-box-bottom{bottom:8px;border-width:1px 1px 0}
+.pitch-six-top,.pitch-six-bottom{left:38%;width:24%;height:6%;border-width:0 1px 1px}.pitch-six-top{top:8px}.pitch-six-bottom{bottom:8px;border-width:1px 1px 0}
+.pitch-penalty-top,.pitch-penalty-bottom{width:4px;height:4px;border:0;border-radius:50%;background:#ffffffa0;left:calc(50% - 2px)}.pitch-penalty-top{top:20%}.pitch-penalty-bottom{bottom:20%}
+.pitch-player{position:absolute;left:var(--player-x);top:var(--player-y);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;width:76px;padding:0;border:0;background:transparent;color:#fff;cursor:default;z-index:2;text-shadow:0 1px 3px #07130c}
+.player-face-wrap{position:relative;display:block;width:43px;height:43px;border:2px solid #e8f1e9;border-radius:50%;background:#263b32;box-shadow:0 2px 8px #07130c88;overflow:visible}.player-face{display:block;width:100%;height:100%;object-fit:cover;object-position:top center;border-radius:50%;background:#263b32}
+.player-face-fallback{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;font:700 12px "Space Grotesk",sans-serif;color:#e6f1e9;background:#344d40}
+.player-shirt-number{position:absolute;left:1px;top:0;min-width:16px;height:16px;padding:0 3px;display:grid;place-items:center;border-radius:8px;background:#f4f6f3;color:#17251d;font:700 9px "Space Grotesk",sans-serif;text-shadow:none;box-shadow:0 1px 4px #07130c66}
+.pitch-player-name{display:block;max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 5px;border-radius:3px;background:#10251bd9;color:#fff;font:600 9px "DM Sans",sans-serif;line-height:1.2}
+.pitch-player-rating{display:block;min-width:25px;padding:2px 5px;border-radius:4px;background:#d9f36b;color:#182416;font:700 10px "Space Grotesk",sans-serif;text-shadow:none;box-shadow:0 1px 4px #07130c55}.pitch-player-rating.rating-unavailable{background:#182b22;color:#dce6df;border:1px solid #ffffff50}
+.substitutes{border-top:1px solid #ffffff12}.substitutes .player-section-heading{display:flex;justify-content:space-between;padding:11px 13px 7px;border:0}.player-section-heading span{color:#9baab3;font-weight:500}
+.sub-list{padding:0 12px 9px}.sub-player{display:flex;align-items:center;gap:8px;min-height:35px;border-bottom:1px solid #ffffff0a}.sub-player:last-child{border-bottom:0}.sub-number{width:18px;text-align:center;color:#82929e;font:600 10px "Space Grotesk",sans-serif}
+.sub-face{width:25px;height:25px;object-fit:cover;object-position:top center;border-radius:50%;background:#263b32}.sub-name{flex:1;min-width:0;color:#e5ebef;font-size:10px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub-rating{min-width:30px;text-align:center;padding:4px 3px;border-radius:4px;background:#b9f36b18;color:var(--green);font:700 10px "Space Grotesk",sans-serif}.sub-rating.rating-unavailable{background:#ffffff08;color:#74838e}
+@media(max-width:700px){.lineups-grid{grid-template-columns:1fr;gap:14px}.team-pitch{aspect-ratio:.9}.pitch-player{width:82px}.player-face-wrap{width:47px;height:47px}.pitch-player-name{max-width:82px;font-size:10px}}
+@media(min-width:701px) and (max-width:900px){.pitch-player{width:65px}.player-face-wrap{width:37px;height:37px}.pitch-player-name{max-width:65px;font-size:8px}}
