@@ -271,7 +271,7 @@ async function loadFcRatings() {
     fcRatingsProgress: { completed: 0, total: players.length },
   };
   renderMatch(currentMatch.match, currentMatch.matchId);
-  if (ratingMode === "fc") setStatus("Matching players to the FC Database...", "loading");
+  setStatus("Matching players to the FC Database...", "loading");
 
   const lookupMatchId = matchRef.matchId;
   const lookupPromise = (async () => {
@@ -407,7 +407,7 @@ form.addEventListener("submit", async event => {
 
     currentMatch = { match: data.matchData, matchId, fcRatings: {}, fcRatingsLoaded: false };
     renderMatch(data.matchData, matchId);
-    setStatus("Match loaded successfully.", "success");
+    setStatus("Matching players to the FC Database...", "loading");
     // Prefetch FC Database ratings as soon as the match lineups are available,
     // even while FotMob remains the selected display mode.
     loadFcRatings();
