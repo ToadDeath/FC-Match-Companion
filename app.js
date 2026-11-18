@@ -155,11 +155,11 @@ function renderPlayerBubble(player, side, fcRatings, position) {
   const photo = playerPhotoUrl(player);
   const photoMarkup = photo ? '<img class="player-face" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : "";
   const fallbackMarkup = '<span class="player-face-fallback" ' + (photo ? "hidden" : "") + '>' + safeText(playerInitials(name)) + "</span>";
-  return '<button class="pitch-player" type="button" style="--player-x:' + position.x + '%;--player-y:' + position.y + '%" title="' + safeText(name) + '">' +
+  return '<div class="pitch-player" style="--player-x:' + position.x + '%;--player-y:' + position.y + '%" title="' + safeText(name) + '">' +
     '<span class="player-face-wrap">' + photoMarkup + fallbackMarkup + "</span>" +
     (number !== "" ? '<span class="player-shirt-number">' + safeText(number) + "</span>" : "") +
     '<span class="pitch-player-name">' + safeText(name) + "</span>" +
-    '<span class="pitch-player-rating ' + (displayed ? "" : "rating-unavailable") + '">' + safeText(displayed || "—") + "</span></button>";
+    '<span class="pitch-player-rating ' + (displayed ? "" : "rating-unavailable") + '">' + safeText(displayed || "—") + "</span></div>";
 }
 
 function renderSubstitute(player, side, fcRatings) {
