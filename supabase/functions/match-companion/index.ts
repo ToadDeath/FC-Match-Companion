@@ -86,7 +86,8 @@ export default {
             const index = nextIndex++;
             const player = players[index];
             if (!player?.key || !player?.name) continue;
-            ratings[player.key] = await lookupPlayer(player, apiKey, ctx.supabaseAdmin);
+            const enrichedPlayer = await enrichFotMobPlayerContext(player);
+            ratings[player.key] = await lookupPlayer(enrichedPlayer, apiKey, ctx.supabaseAdmin);
           }
         }
 
@@ -101,6 +102,90 @@ export default {
     }
   }),
 };
+
+/**
+ * International match lineups often identify the player's team as the country
+ * (for example, "Mexico") and omit their playing position. Hydrate missing
+ * context from FotMob's player profile so matching uses the player's actual
+ * club and position instead of the national team.
+ */
+async function enrichFotMobPlayerContext(player: PlayerRequest): Promise<PlayerRequest> {
+  if (!player.fotmobId) return player;
+
+  const needsContext = !player.position || !player.team ||
+    isLikelyNationalTeamName(player.team);
+  if (!needsContext) return player;
+
+  try {
+    const response = await fetch(
+      `https://www.fotmob.com/api/data/playerData?id=${encodeURIComponent(String(player.fotmobId))}`,
+      {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Mozilla/5.0 FC-Match-Companion/1.0",
+        },
+      },
+    );
+    if (!response.ok) {
+      console.warn("FotMob player profile lookup failed:", {
+        fotmobId: player.fotmobId,
+        status: response.status,
+      });
+      return player;
+    }
+
+    const profile = await response.json();
+    const primaryTeam = profile?.primaryTeam ?? profile?.team ?? {};
+    const profileClub = String(
+      primaryTeam?.teamName ?? primaryTeam?.name ?? profile?.teamName ?? "",
+    ).trim();
+
+    const positionEntries = profile?.positionDescription?.positions;
+    const describedPositions = Array.isArray(positionEntries)
+      ? positionEntries.map((entry: Record<string, unknown>) => {
+          const strPos = entry?.strPos;
+          if (strPos && typeof strPos === "object") {
+            const position = strPos as Record<string, unknown>;
+            return String(position.label ?? position.key ?? "");
+          }
+          return String(strPos ?? entry?.label ?? entry?.name ?? "");
+        }).filter(Boolean)
+      : [];
+    const profilePosition = String(
+      profile?.position ??
+      profile?.positionName ??
+      describedPositions[0] ??
+      primaryTeam?.role ??
+      "",
+    ).trim();
+
+    return {
+      ...player,
+      team: profileClub || player.team,
+      position: profilePosition || player.position,
+    };
+  } catch (error) {
+    console.warn("FotMob player profile context lookup failed:", {
+      fotmobId: player.fotmobId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return player;
+  }
+}
+
+function isLikelyNationalTeamName(value: string): boolean {
+  const name = normalize(value);
+  const countries = new Set([
+    "argentina", "australia", "austria", "belgium", "brazil", "canada",
+    "chile", "china", "colombia", "croatia", "denmark", "ecuador",
+    "england", "france", "germany", "ghana", "italy", "japan", "mexico",
+    "morocco", "netherlands", "nigeria", "norway", "paraguay", "peru",
+    "poland", "portugal", "scotland", "senegal", "serbia", "southkorea",
+    "spain", "sweden", "switzerland", "turkey", "ukraine", "unitedstates",
+    "uruguay", "wales",
+  ]);
+  return countries.has(name);
+}
 
 async function lookupPlayer(
   player: PlayerRequest,
