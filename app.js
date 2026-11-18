@@ -59,7 +59,11 @@ function getPlayers(team) {
 }
 
 function getSubstitutes(team) {
-  return flattenPlayers(team?.subs || team?.substitutes || []);
+  const explicit = flattenPlayers(team?.subs || team?.substitutes || []);
+  if (explicit.length) return explicit;
+  return flattenPlayers(team?.bench || []).filter(player =>
+    player?.timeSubbedOn != null || player?.subbedOn != null || player?.substitutionMinute != null
+  );
 }
 
 function getBenchPlayers(team, lineup, side, teamId) {
@@ -67,7 +71,9 @@ function getBenchPlayers(team, lineup, side, teamId) {
   if (!Array.isArray(bench) && bench && typeof bench === "object") {
     bench = bench.players || bench.bench || bench.substitutes || [];
   }
-  if (Array.isArray(bench) && bench.length) return flattenPlayers(bench);
+  if (Array.isArray(bench) && bench.length) return flattenPlayers(bench).filter(player =>
+    player?.timeSubbedOn == null && player?.subbedOn == null && player?.substitutionMinute == null
+  );
 
   const shared = lineup?.bench;
   if (Array.isArray(shared)) {
@@ -237,15 +243,6 @@ function renderRosterPlayer(player, side, fcRatings, kind) {
 function renderRosterColumn(players, side, fcRatings, kind) {
   const rows = players.map(player => renderRosterPlayer(player, side, fcRatings, kind)).join("");
   return '<div class="roster-list">' + (rows || '<p class="lineup-empty">None listed</p>') + '</div>';
-}
-
-function renderTeam(team, side, headerTeam, fcRatings, lineup, teamId) {
-  const substitutes = getSubstitutes(team);
-  const bench = getBenchPlayers(team, lineup, side, teamId);
-  return '<div class="team-rosters">' +
-    renderRosterSection("Substitutes", substitutes, side, fcRatings, "sub") +
-    renderRosterSection("Bench", bench, side, fcRatings, "bench") +
-    '</div>';
 }
 
 function renderTeamPitchHeader(team, headerTeam, side) {
