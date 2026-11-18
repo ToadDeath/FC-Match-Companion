@@ -180,6 +180,19 @@ function renderMatch(match, matchId) {
 
   matchTitle.textContent = title;
   const fcRatings = currentMatch.fcRatings || {};
+  const lookupPlayers = collectPlayers(match);
+  const unmatchedPlayers = currentMatch.fcRatingsLoaded
+    ? lookupPlayers.filter(player => {
+        const result = fcRatings[player.key];
+        return !result || result.rating === null || result.rating === undefined;
+      })
+    : [];
+  const unmatchedSummary = unmatchedPlayers.length
+    ? `Not matched: ${unmatchedPlayers.map(player => {
+        const result = fcRatings[player.key];
+        return `${player.name}${result?.status === "ambiguous" ? " (ambiguous match)" : ""}`;
+      }).join(", ")}.`
+    : "";
 
   matchContent.innerHTML = `
     <div class="match-summary">
@@ -197,13 +210,12 @@ function renderMatch(match, matchId) {
       ${renderTeam(awayTeam, "away", awayHeader, fcRatings)}
     </div>
     ${!hasLineup ? '<p class="lineup-footnote">The match details loaded successfully, but FotMob has not supplied the lineups in this response. Try again once lineups are available.</p>' : ""}
-    <p class="rating-footnote">${ratingMode === "fc"
-      ? (currentMatch.fcRatingsLoading
-          ? "Looking up FC Database ratings from FCRadar..."
-          : currentMatch.fcRatingsLoaded
-            ? "FC Database ratings from FCRadar. A dash means no confident player match was found."
-            : "Select FC Database to view player OVRs from FCRadar.")
-      : "FotMob match ratings are displayed by default. FC Database player OVRs are fetched in the background."}</p>
+    ${currentMatch.fcRatingsLoading ? '<div class="fc-lookup-progress" role="status" aria-live="polite"><span class="fc-lookup-spinner" aria-hidden="true"></span><span><strong>Loading FC Database ratings</strong><small>Checking player identities and retrieving OVRs from FCRadar. First-time lookups can take a few seconds.</small></span></div>' : ""}
+    <p class="rating-footnote">${currentMatch.fcRatingsLoaded
+      ? `FC Database: ${lookupPlayers.length - unmatchedPlayers.length}/${lookupPlayers.length} players matched. ${unmatchedSummary}`
+      : ratingMode === "fc"
+        ? "FC Database ratings are retrieved from FCRadar."
+        : "FotMob match ratings are displayed by default. FC Database ratings are prepared in the background."}</p>
   `;
 
   matchContent.classList.remove("hidden");
