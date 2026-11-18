@@ -234,10 +234,9 @@ function renderRosterPlayer(player, side, fcRatings, kind) {
     '<span class="roster-rating ' + (displayed ? "" : "rating-unavailable") + '">' + safeText(displayed || "—") + "</span></div>";
 }
 
-function renderRosterSection(title, players, side, fcRatings, kind) {
+function renderRosterColumn(players, side, fcRatings, kind) {
   const rows = players.map(player => renderRosterPlayer(player, side, fcRatings, kind)).join("");
-  return '<section class="roster-card"><h4>' + safeText(title) + '</h4><div class="roster-list">' +
-    (rows || '<p class="lineup-empty">None listed</p>') + '</div></section>';
+  return '<div class="roster-list">' + (rows || '<p class="lineup-empty">None listed</p>') + '</div>';
 }
 
 function renderTeam(team, side, headerTeam, fcRatings, lineup, teamId) {
@@ -351,13 +350,19 @@ function renderMatch(match, matchId) {
     <div class="lineups-heading"><div><span class="stage-kicker">MATCH LINEUPS</span><h3>Starting XI</h3></div><span class="lineup-note">${hasLineup ? (ratingMode === "fc" ? "FC Database ratings" : "FotMob match ratings") : "Lineups may not be published yet"}</span></div>
     <div class="lineups-grid">
       ${renderCombinedPitch(homeTeam, awayTeam, homeHeader, awayHeader, fcRatings)}
-      <div class="substitutes-grid">
-        ${renderTeam(homeTeam, "home", homeHeader, fcRatings, lineup, homeHeader.id || general.homeTeam?.id)}
-        ${renderTeam(awayTeam, "away", awayHeader, fcRatings, lineup, awayHeader.id || general.awayTeam?.id)}
-      </div>
-      <div class="unavailable-grid">
-        ${renderRosterSection("Injured and suspended players", homeUnavailable, "home", fcRatings, "unavailable")}
-        ${renderRosterSection("Injured and suspended players", awayUnavailable, "away", fcRatings, "unavailable")}
+      <div class="roster-groups">
+        <section class="roster-group"><h4>Substitutes</h4><div class="roster-columns">
+          ${renderRosterColumn(getSubstitutes(homeTeam), "home", fcRatings, "sub")}
+          ${renderRosterColumn(getSubstitutes(awayTeam), "away", fcRatings, "sub")}
+        </div></section>
+        ${homeBench.length || awayBench.length ? `<section class="roster-group"><h4>Bench</h4><div class="roster-columns">
+          ${renderRosterColumn(homeBench, "home", fcRatings, "bench")}
+          ${renderRosterColumn(awayBench, "away", fcRatings, "bench")}
+        </div></section>` : ""}
+        ${homeUnavailable.length || awayUnavailable.length ? `<section class="roster-group"><h4>Injured and suspended players</h4><div class="roster-columns">
+          ${renderRosterColumn(homeUnavailable, "home", fcRatings, "unavailable")}
+          ${renderRosterColumn(awayUnavailable, "away", fcRatings, "unavailable")}
+        </div></section>` : ""}
       </div>
     </div>
     ${!hasLineup ? '<p class="lineup-footnote">The match details loaded successfully, but FotMob has not supplied the lineups in this response. Try again once lineups are available.</p>' : ""}
