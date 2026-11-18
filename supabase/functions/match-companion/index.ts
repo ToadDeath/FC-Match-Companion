@@ -332,7 +332,7 @@ function rankCandidates(
     const exactName = names.some(name => acceptedNames.has(name));
     const surname = normalize(player.name.trim().split(/\\s+/).slice(-1)[0] || "");
     const surnameOnly = !exactName && surname.length >= 4 && names.some(name =>
-      name === surname || name.split(/[^a-z0-9]+/).includes(surname)
+      name === surname || name.includes(surname)
     );
     if (!exactName && !surnameOnly) return null;
 
@@ -344,19 +344,17 @@ function rankCandidates(
     const candidatePosition = normalizePosition(
       candidate.position ?? candidate.positions ?? candidate.primaryPosition ?? ""
     );
-    const positionMatch = Boolean(requestedPosition && candidatePosition &&
-      positionsCompatible(requestedPosition, candidatePosition));
-    const positionConflict = Boolean(requestedPosition && candidatePosition &&
-      !positionsCompatible(requestedPosition, candidatePosition));
+    const positionScore = getPositionMatchScore(requestedPosition, candidatePosition);
+    const positionConflict = Boolean(requestedPosition && candidatePosition && positionScore === 0);
 
     // Never let a surname-only match through without both club and position.
-    if (surnameOnly && (!clubMatch || !positionMatch)) return null;
-    // A specific position conflict is a hard rejection, not a small penalty.
+    if (surnameOnly && (!clubMatch || positionScore === 0)) return null;
+    // A position from a different playing unit is a hard rejection.
     if (positionConflict) return null;
 
     const score = (exactName ? 100 : 45) +
       (clubMatch ? 45 : 0) +
-      (positionMatch ? 30 : 0);
+      positionScore;
     return {
       candidate,
       score,
@@ -404,9 +402,9 @@ function normalizeClub(value: string): string {
     .replace(/^(club|cf|fc|afc|deportivo|cd|real)/, "");
 }
 
-function positionsCompatible(a: string, b: string): boolean {
-  if (!a || !b) return true;
-  if (a === b) return true;
+function getPositionMatchScore(a: string, b: string): number {
+  if (!a || !b) return 0;
+  if (a === b) return 30;
   const group = (position: string) => {
     if (["GK", "GOALKEEPER"].includes(position)) return "GK";
     if (["CB", "LCB", "RCB", "LB", "RB", "LWB", "RWB", "DEF", "DEFENDER"].includes(position)) return "DEF";
@@ -414,7 +412,9 @@ function positionsCompatible(a: string, b: string): boolean {
     if (["LW", "RW", "LF", "RF", "ST", "CF", "ATT", "ATTACKER", "FORWARD"].includes(position)) return "ATT";
     return position;
   };
-  return group(a) === group(b);
+  // Broad FotMob position labels can confirm a group, but don't carry the
+  // same weight as an exact role such as CB or RB.
+  return group(a) === group(b) ? 12 : 0;
 }
 
 async function fetchFCRadarPlayerById(playerId: string, apiKey: string): Promise<FCRadarPlayer | undefined> {
