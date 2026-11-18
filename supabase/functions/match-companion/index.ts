@@ -67,6 +67,16 @@ export default {
         return Response.json({ ok: true, matchId, matchData: await response.json() });
       }
 
+      if (body.action === "ratings-cache") {
+        if (!Array.isArray(body.players) || body.players.length > 60) {
+          return Response.json({ ok: false, error: "A lineup of up to 60 players is required." }, { status: 400 });
+        }
+
+        const players = body.players as PlayerRequest[];
+        const { ratings, missingKeys } = await getCachedRatings(players, ctx.supabaseAdmin);
+        return Response.json({ ok: true, ratings, missingKeys });
+      }
+
       if (body.action === "ratings") {
         const apiKey = Deno.env.get("FCRADAR_API_KEY");
         if (!apiKey) {
@@ -74,75 +84,21 @@ export default {
         }
 
         if (!Array.isArray(body.players) || body.players.length > 60) {
-          return Response.json({ ok: false, error: "A lineup of up to 60 players is required." }, { status: 400 });
+          return Response.json({ ok: false, error: "Up to 60 players are required." }, { status: 400 });
         }
 
         const players = body.players as PlayerRequest[];
         const ratings: Record<string, RatingResult> = {};
-
-        // Resolve all known FotMob identities and unexpired edition ratings in
-        // two bulk database reads instead of two reads per player.
-        const fotmobIds = [...new Set(players
-          .map(player => player?.fotmobId == null ? "" : String(player.fotmobId))
-          .filter(Boolean))];
-        const identityByFotmobId = new Map<string, Record<string, unknown>>();
-        const ratingByFcradarId = new Map<string, Record<string, unknown>>();
-
-        if (fotmobIds.length) {
-          const { data: identities, error: identityError } = await ctx.supabaseAdmin
-            .from("fc_player_identities")
-            .select("fcradar_player_id, fotmob_player_id, player_name, common_name, first_name, last_name")
-            .in("fotmob_player_id", fotmobIds);
-          if (identityError) throw new Error(`Player identity cache read failed: ${identityError.message}`);
-
-          for (const identity of identities || []) {
-            identityByFotmobId.set(String(identity.fotmob_player_id), identity);
-          }
-
-          const fcradarIds = [...new Set((identities || [])
-            .map((identity: Record<string, unknown>) => String(identity.fcradar_player_id || ""))
-            .filter(Boolean))];
-          if (fcradarIds.length) {
-            const { data: cachedRatings, error: ratingError } = await ctx.supabaseAdmin
-              .from("fc_player_ratings")
-              .select("fcradar_player_id, overall_rating, club_name, expires_at")
-              .in("fcradar_player_id", fcradarIds)
-              .eq("game_code", GAME_CODE)
-              .gt("expires_at", new Date().toISOString());
-            if (ratingError) throw new Error(`Player rating cache read failed: ${ratingError.message}`);
-
-            for (const rating of cachedRatings || []) {
-              ratingByFcradarId.set(String(rating.fcradar_player_id), rating);
-            }
-          }
-        }
-
         let nextIndex = 0;
+
+        // This action receives only cache misses from the frontend. Resolve those
+        // players concurrently without making cached players wait on slow searches.
         async function worker() {
           while (nextIndex < players.length) {
             const index = nextIndex++;
             const player = players[index];
             if (!player?.key || !player?.name) continue;
-
-            const identity = player.fotmobId == null
-              ? undefined
-              : identityByFotmobId.get(String(player.fotmobId));
-            const cachedRating = identity?.fcradar_player_id == null
-              ? undefined
-              : ratingByFcradarId.get(String(identity.fcradar_player_id));
-
-            if (identity && cachedRating) {
-              ratings[player.key] = {
-                rating: Number(cachedRating.overall_rating),
-                status: "matched",
-                playerName: String(identity.player_name || player.name),
-                club: String(cachedRating.club_name || ""),
-                playerId: String(identity.fcradar_player_id),
-                source: "cache",
-              };
-            } else {
-              ratings[player.key] = await lookupPlayer(player, apiKey, ctx.supabaseAdmin);
-            }
+            ratings[player.key] = await lookupPlayer(player, apiKey, ctx.supabaseAdmin);
           }
         }
 
@@ -164,6 +120,74 @@ export default {
  * context from FotMob's player profile so matching uses the player's actual
  * club and position instead of the national team.
  */
+async function getCachedRatings(
+  players: PlayerRequest[],
+  db: any,
+): Promise<{ ratings: Record<string, RatingResult>; missingKeys: string[] }> {
+  const ratings: Record<string, RatingResult> = {};
+  const fotmobIds = [...new Set(players
+    .map(player => player?.fotmobId == null ? "" : String(player.fotmobId))
+    .filter(Boolean))];
+  const identityByFotmobId = new Map<string, Record<string, unknown>>();
+  const ratingByFcradarId = new Map<string, Record<string, unknown>>();
+
+  if (fotmobIds.length) {
+    const { data: identities, error: identityError } = await db
+      .from("fc_player_identities")
+      .select("fcradar_player_id, fotmob_player_id, player_name")
+      .in("fotmob_player_id", fotmobIds);
+    if (identityError) throw new Error(`Player identity cache read failed: ${identityError.message}`);
+
+    for (const identity of identities || []) {
+      identityByFotmobId.set(String(identity.fotmob_player_id), identity);
+    }
+
+    const fcradarIds = [...new Set((identities || [])
+      .map((identity: Record<string, unknown>) => String(identity.fcradar_player_id || ""))
+      .filter(Boolean))];
+    if (fcradarIds.length) {
+      const { data: cachedRatings, error: ratingError } = await db
+        .from("fc_player_ratings")
+        .select("fcradar_player_id, overall_rating, club_name")
+        .in("fcradar_player_id", fcradarIds)
+        .eq("game_code", GAME_CODE)
+        .gt("expires_at", new Date().toISOString());
+      if (ratingError) throw new Error(`Player rating cache read failed: ${ratingError.message}`);
+
+      for (const rating of cachedRatings || []) {
+        ratingByFcradarId.set(String(rating.fcradar_player_id), rating);
+      }
+    }
+  }
+
+  const missingKeys: string[] = [];
+  for (const player of players) {
+    if (!player?.key || !player?.name) continue;
+    const identity = player.fotmobId == null
+      ? undefined
+      : identityByFotmobId.get(String(player.fotmobId));
+    const cachedRating = identity?.fcradar_player_id == null
+      ? undefined
+      : ratingByFcradarId.get(String(identity.fcradar_player_id));
+
+    if (!identity || !cachedRating) {
+      missingKeys.push(player.key);
+      continue;
+    }
+
+    ratings[player.key] = {
+      rating: Number(cachedRating.overall_rating),
+      status: "matched",
+      playerName: String(identity.player_name || player.name),
+      club: String(cachedRating.club_name || ""),
+      playerId: String(identity.fcradar_player_id),
+      source: "cache",
+    };
+  }
+
+  return { ratings, missingKeys };
+}
+
 async function enrichFotMobPlayerContext(player: PlayerRequest): Promise<PlayerRequest> {
   if (!player.fotmobId) return player;
 
