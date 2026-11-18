@@ -196,19 +196,18 @@ function renderMatch(match, matchId) {
   const candidateDiagnosticsHtml = unmatchedPlayers.map(player => {
     const result = fcRatings[player.key];
     const suggestions = result?.suggestions || [];
-    if (!suggestions.length) return "";
     const fotmobSlug = player.name.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
       .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const fotmobUrl = player.fotmobId
       ? `https://www.fotmob.com/players/${encodeURIComponent(player.fotmobId)}/${fotmobSlug}`
       : "";
     return `<details class="candidate-diagnostics">
-      <summary>Possible matches for ${safeText(player.name)} (${suggestions.length})</summary>
+      <summary>Inspect FCRadar search for ${safeText(player.name)} (${suggestions.length} candidates)</summary>
       <div class="candidate-diagnostics-links">${fotmobUrl ? `<a href="${fotmobUrl}" target="_blank" rel="noopener noreferrer">Open FotMob profile</a>` : ""}</div>
-      ${suggestions.map(candidate => `<div class="candidate-diagnostic-row">
+      ${suggestions.length ? suggestions.map(candidate => `<div class="candidate-diagnostic-row">
         <span><strong>${safeText(candidate.name)}</strong><small>${safeText(candidate.club || "Club unavailable")} · ${safeText(candidate.position || "Position unavailable")}${candidate.rating ? ` · ${candidate.rating} OVR` : ""}</small></span>
         <a href="${safeText(candidate.url)}" target="_blank" rel="noopener noreferrer">FCRadar ↗</a>
-      </div>`).join("")}
+      </div>`).join("") : '<p class="candidate-diagnostics-empty">FCRadar returned no candidate records for the searches attempted. This points to a search/query or response-parsing issue rather than a confirmed absence from the game.</p>'}
     </details>`;
   }).join("");
 
