@@ -292,16 +292,16 @@ function renderRosterPlayer(player, side, fcRatings, kind) {
   const nameMarkup = fotmobUrl
     ? '<a class="roster-player-link" href="' + safeText(fotmobUrl) + '" target="_blank" rel="noopener noreferrer">' + safeText(name) + '</a>'
     : safeText(name);
-  return '<div class="roster-player ' + kind + '">' +
-    (photo ? '<img class="roster-face" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="roster-face roster-face-empty"></span>') +
-    '<span class="roster-rating ' + ratingTone + '">' + safeText(displayed || "—") + "</span>" +
-    '<span class="roster-number">' + safeText(number || "·") + "</span>" +
-    '<span class="roster-copy"><strong>' + nameMarkup + fcradarProfileLink(fcResult) + '</strong><small>' + safeText(position) + (detail ? ' · ' + detail : "") + "</small></span></div>";
+  return '<div class="fc-roster-row fc-roster-row--' + kind + '">' +
+    (photo ? '<img class="fc-roster-photo" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="fc-roster-photo fc-roster-photo--empty"></span>') +
+    '<span class="fc-roster-rating ' + ratingTone + '">' + safeText(displayed || "—") + "</span>" +
+    '<span class="fc-roster-number">' + safeText(number || "·") + "</span>" +
+    '<span class="fc-roster-copy"><strong>' + nameMarkup + fcradarProfileLink(fcResult) + '</strong><small>' + safeText(position) + (detail ? ' · ' + detail : "") + "</small></span></div>";
 }
 
 function renderRosterColumn(players, side, fcRatings, kind) {
   const rows = players.map(player => renderRosterPlayer(player, side, fcRatings, kind)).join("");
-  return '<div class="roster-list">' + (rows || '<p class="lineup-empty">None listed</p>') + '</div>';
+  return '<div class="fc-roster-list">' + (rows || '<p class="lineup-empty">None listed</p>') + '</div>';
 }
 
 function renderTeamPitchHeader(team, headerTeam, side) {
@@ -407,16 +407,16 @@ function renderMatch(match, matchId) {
     <div class="lineups-heading"><div><span class="stage-kicker">MATCH LINEUPS</span><h3>Starting XI</h3></div><span class="lineup-note">${hasLineup ? (ratingMode === "fc" ? "FC Database ratings" : "FotMob match ratings") : "Lineups may not be published yet"}</span></div>
     <div class="lineup-display">
       ${renderCombinedPitch(homeTeam, awayTeam, homeHeader, awayHeader, fcRatings)}
-      <div class="roster-groups">
-        <section class="roster-group"><h4>Substitutes</h4><div class="roster-columns">
+      <div class="fc-roster-groups">
+        <section class="fc-roster-group"><div class="fc-roster-heading">Substitutes</div><div class="fc-roster-columns">
           ${renderRosterColumn(getSubstitutes(homeTeam), "home", fcRatings, "sub")}
           ${renderRosterColumn(getSubstitutes(awayTeam), "away", fcRatings, "sub")}
         </div></section>
-        ${homeBench.length || awayBench.length ? `<section class="roster-group"><h4>Bench</h4><div class="roster-columns">
+        ${homeBench.length || awayBench.length ? `<section class="fc-roster-group"><div class="fc-roster-heading">Bench</div><div class="fc-roster-columns">
           ${renderRosterColumn(homeBench, "home", fcRatings, "bench")}
           ${renderRosterColumn(awayBench, "away", fcRatings, "bench")}
         </div></section>` : ""}
-        ${homeUnavailable.length || awayUnavailable.length ? `<section class="roster-group"><h4>Injured and suspended players</h4><div class="roster-columns">
+        ${homeUnavailable.length || awayUnavailable.length ? `<section class="fc-roster-group"><div class="fc-roster-heading">Injured and suspended players</div><div class="fc-roster-columns">
           ${renderRosterColumn(homeUnavailable, "home", fcRatings, "unavailable")}
           ${renderRosterColumn(awayUnavailable, "away", fcRatings, "unavailable")}
         </div></section>` : ""}
