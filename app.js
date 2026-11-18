@@ -206,6 +206,21 @@ function getPlayerPitchPositions(team, side) {
   }
   return starters.map((player, index) => ({ player, ...(positions.get(player) || { x: side === "home" ? 25 : 75, y: 50 }), index }));
 }
+function playerProfileUrl(player) {
+  const id = player?.id ?? player?.playerId;
+  if (id == null) return "";
+  const name = player?.name || player?.localizedName || "";
+  const slug = name.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return `https://www.fotmob.com/players/${encodeURIComponent(id)}/${slug}`;
+}
+
+function fcradarProfileLink(fcResult) {
+  return fcResult?.fcradarUrl
+    ? '<a class="player-provider-link" href="' + safeText(fcResult.fcradarUrl) + '" target="_blank" rel="noopener noreferrer" aria-label="Open FCRadar player profile" title="Open FCRadar profile">F</a>'
+    : "";
+}
+
 function renderPlayerBubble(player, side, fcRatings, position) {
   const name = player?.name || player?.localizedName || "Unknown player";
   const number = player?.shirtNumber ?? player?.number ?? player?.shirt ?? "";
@@ -216,11 +231,14 @@ function renderPlayerBubble(player, side, fcRatings, position) {
   const photo = playerPhotoUrl(player);
   const photoMarkup = photo ? '<img class="player-face" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : "";
   const fallbackMarkup = '<span class="player-face-fallback" aria-hidden="true" ' + (photo ? "hidden" : "") + '></span>';
-  return '<div class="pitch-player" style="--player-x:' + position.x + '%;--player-y:' + position.y + '%" title="' + safeText(name) + '">' +
+  const fotmobUrl = playerProfileUrl(player);
+  const tag = fotmobUrl ? "a" : "div";
+  const href = fotmobUrl ? ' href="' + safeText(fotmobUrl) + '" target="_blank" rel="noopener noreferrer" aria-label="Open ' + safeText(name) + ' on FotMob"' : "";
+  return '<' + tag + ' class="pitch-player" style="--player-x:' + position.x + '%;--player-y:' + position.y + '%" title="' + safeText(name) + '"' + href + '>' +
     '<span class="player-face-wrap">' + photoMarkup + fallbackMarkup +
     (number !== "" ? '<span class="player-shirt-number">' + safeText(number) + "</span>" : "") + "</span>" +
-    '<span class="pitch-player-name">' + safeText(name) + "</span>" +
-    '<span class="pitch-player-rating ' + ratingTone + '">' + safeText(displayed || "—") + "</span></div>";
+    '<span class="pitch-player-name">' + safeText(name) + fcradarProfileLink(fcResult) + "</span>" +
+    '<span class="pitch-player-rating ' + ratingTone + '">' + safeText(displayed || "—") + "</span></' + tag + '>";
 }
 
 function renderRosterPlayer(player, side, fcRatings, kind) {
@@ -236,10 +254,14 @@ function renderRosterPlayer(player, side, fcRatings, kind) {
   const reason = player?.reason || player?.status || player?.injury || "";
   const detail = kind === "sub" && minute !== "" ? safeText(String(minute).replace(/['’]$/, "")) + "′" :
     kind === "unavailable" ? safeText(typeof reason === "object" ? reason.text || reason.name || reason.label || "" : reason) : "";
+  const fotmobUrl = playerProfileUrl(player);
+  const nameMarkup = fotmobUrl
+    ? '<a class="roster-player-link" href="' + safeText(fotmobUrl) + '" target="_blank" rel="noopener noreferrer">' + safeText(name) + '</a>'
+    : safeText(name);
   return '<div class="roster-player ' + kind + '">' +
     '<span class="roster-number">' + safeText(number || "·") + "</span>" +
     (photo ? '<img class="roster-face" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="roster-face roster-face-empty"></span>') +
-    '<span class="roster-copy"><strong>' + safeText(name) + '</strong><small>' + safeText(position) + (detail ? ' · ' + detail : "") + '</small></span>' +
+    '<span class="roster-copy"><strong>' + nameMarkup + fcradarProfileLink(fcResult) + '</strong><small>' + safeText(position) + (detail ? ' · ' + detail : "") + '</small></span>' +
     '<span class="roster-rating ' + ratingTone + '">' + safeText(displayed || "—") + "</span></div>";
 }
 
