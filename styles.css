@@ -171,157 +171,24 @@
 
 
 
-/* Canonical lineup and FotMob-style roster layout. Keep this as the single source of truth. */
-.lineup-display{
-  display:flex;
-  flex-direction:column;
-  align-items:stretch;
-  gap:14px;
-  width:100%;
-  min-width:0;
-}
-.combined-pitch-card{
-  display:block;
-  position:relative;
-  width:100%;
-  min-width:0;
-  overflow:hidden;
-}
-.combined-pitch{
-  display:block;
-  position:relative;
-  width:100%;
-}
-.roster-groups{
-  display:flex;
-  flex-direction:column;
-  position:relative;
-  width:100%;
-  min-width:0;
-  margin:0;
-  gap:12px;
-}
-.roster-group{
-  display:block;
-  position:relative;
-  width:100%;
-  min-width:0;
-  overflow:hidden;
-  border:1px solid #293b47;
-  border-radius:10px;
-  background:#101a23;
-}
-.roster-group>h4{
-  display:block;
-  position:static;
-  width:100%;
-  margin:0;
-  padding:11px 15px;
-  border-bottom:1px solid #ffffff0c;
-  color:#edf2f5;
-  text-align:left;
-  font:600 12px "Space Grotesk",sans-serif;
-}
-.roster-columns{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-  align-items:start;
-  gap:0 18px;
-  padding:4px 15px 8px;
-}
-.roster-list{
-  display:flex;
-  flex-direction:column;
-  min-width:0;
-}
-.roster-player{
-  display:grid;
-  grid-template-columns:32px 34px 22px minmax(0,1fr);
-  grid-template-rows:minmax(36px,auto);
-  align-items:center;
-  column-gap:8px;
-  position:relative;
-  width:100%;
-  min-width:0;
-  min-height:48px;
-  margin:0;
-  padding:6px 2px;
-  overflow:hidden;
-  float:none;
-  border-bottom:1px solid #ffffff0d;
-}
-.roster-player:last-child{border-bottom:0}
-.roster-player>.roster-face,
-.roster-player>.roster-face-empty{
-  display:block;
-  grid-column:1;
-  grid-row:1;
-  position:static;
-  width:32px;
-  height:32px;
-  min-width:32px;
-  max-width:32px;
-  margin:0;
-  padding:0;
-  float:none;
-  transform:none;
-  justify-self:center;
-  align-self:center;
-  object-fit:cover;
-  object-position:top center;
-  border-radius:50%;
-  background:#26343c;
-}
-.roster-player>.roster-face-empty{background:#39434a}
-.roster-player>.roster-rating{
-  display:inline-flex;
-  grid-column:2;
-  grid-row:1;
-  justify-self:center;
-  align-self:center;
-  min-width:29px;
-  margin:0;
-  padding:4px 5px;
-  text-align:center;
-}
-.roster-player>.roster-number{
-  display:block;
-  grid-column:3;
-  grid-row:1;
-  width:22px;
-  margin:0;
-  justify-self:center;
-  align-self:center;
-  text-align:center;
-}
-.roster-player>.roster-copy{
-  display:flex;
-  grid-column:4;
-  grid-row:1;
-  flex-direction:column;
-  justify-content:center;
-  width:100%;
-  min-width:0;
-  margin:0;
-}
-.roster-copy strong,
-.roster-copy small{
-  display:block;
-  width:100%;
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.roster-copy strong{color:#e9eef1;font-size:10px;font-weight:700}
-.roster-copy small{margin-top:3px;color:#8d9ba5;font-size:9px}
-.roster-player.sub .roster-copy small{color:#9aa8b1}
-.roster-player.unavailable .roster-copy small{color:#a1aab0}
-@media(max-width:700px){
-  .roster-columns{
-    grid-template-columns:minmax(0,1fr);
-    gap:0;
-    padding:3px 12px 7px;
-  }
-  .roster-player{min-height:46px}
-}
+
+/* Isolated roster component styles. Namespaced to avoid legacy lineup selectors. */
+.lineup-display{display:flex;flex-direction:column;align-items:stretch;gap:14px;width:100%;min-width:0}
+.fc-roster-groups{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;position:relative;clear:both}
+.fc-roster-group{display:block;position:relative;width:100%;min-width:0;overflow:hidden;border:1px solid #293b47;border-radius:10px;background:#101a23}
+.fc-roster-heading{display:block;position:static;margin:0;padding:11px 15px;border-bottom:1px solid #ffffff0c;color:#edf2f5;font:600 12px "Space Grotesk",sans-serif;line-height:1.3}
+.fc-roster-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:0 18px;padding:4px 15px 8px}
+.fc-roster-list{display:flex;flex-direction:column;min-width:0;width:100%}
+.fc-roster-row{all:unset;box-sizing:border-box;display:grid;grid-template-columns:32px 34px 22px minmax(0,1fr);grid-template-rows:minmax(36px,auto);align-items:center;column-gap:8px;position:relative;width:100%;min-width:0;min-height:48px;margin:0;padding:6px 2px;overflow:hidden;border-bottom:1px solid #ffffff0d;color:#e9eef1;font:inherit}
+.fc-roster-row:last-child{border-bottom:0}
+.fc-roster-photo{box-sizing:border-box;display:block;grid-column:1;grid-row:1;position:static!important;width:32px!important;height:32px!important;min-width:32px!important;max-width:32px!important;min-height:32px!important;max-height:32px!important;margin:0!important;padding:0!important;float:none!important;transform:none!important;justify-self:center;align-self:center;object-fit:cover;object-position:top center;border-radius:50%;background:#26343c}
+.fc-roster-photo--empty{background:#39434a}
+.fc-roster-rating{box-sizing:border-box;display:inline-flex;grid-column:2;grid-row:1;justify-self:center;align-self:center;min-width:29px;margin:0;padding:4px 5px;text-align:center;border-radius:5px;font:700 10px "Space Grotesk",sans-serif}
+.fc-roster-number{display:block;grid-column:3;grid-row:1;width:22px;margin:0;justify-self:center;align-self:center;text-align:center;color:#9ba8b0;font:600 10px "Space Grotesk",sans-serif}
+.fc-roster-copy{display:flex;grid-column:4;grid-row:1;flex-direction:column;justify-content:center;width:100%;min-width:0;margin:0}
+.fc-roster-copy strong,.fc-roster-copy small{display:block;width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fc-roster-copy strong{color:#e9eef1;font-size:10px;font-weight:700;line-height:1.25}
+.fc-roster-copy small{margin-top:3px;color:#8d9ba5;font-size:9px;line-height:1.2}
+.fc-roster-row--sub .fc-roster-copy small{color:#9aa8b1}
+.fc-roster-row--unavailable .fc-roster-copy small{color:#a1aab0}
+@media(max-width:700px){.fc-roster-columns{grid-template-columns:minmax(0,1fr);gap:0;padding:3px 12px 7px}.fc-roster-row{min-height:46px}}
