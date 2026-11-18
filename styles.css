@@ -52,9 +52,14 @@
 .score-center strong{font:700 10px "Space Grotesk",sans-serif;color:#91a1ab;letter-spacing:1.5px;text-transform:uppercase}
 .score-center span{display:none}
 
-/* Visible background lookup state for FC Database ratings */
-.fc-lookup-progress{display:flex;align-items:center;gap:12px;margin:16px 2px 0;padding:13px 15px;border:1px solid #8fcb4340;background:#a5df600c;border-radius:8px;color:#dce8d2}
-.fc-lookup-progress strong{display:block;font:600 11px "Space Grotesk",sans-serif;color:var(--green)}
-.fc-lookup-progress small{display:block;margin-top:4px;color:#9eacb5;font-size:10px;line-height:1.5}
-.fc-lookup-spinner{width:17px;height:17px;flex:none;border:2px solid #b9f36b35;border-top-color:var(--green);border-radius:50%;animation:fc-spin .8s linear infinite}
+/* High-visibility FC Database matching progress */
+.fc-lookup-progress{display:block;margin:18px 2px 0;padding:16px 17px;border:1px solid #9edb5266;background:linear-gradient(110deg,#a5df6018,#a5df6008);border-radius:9px;color:#dce8d2;box-shadow:0 0 24px #9edb5210}
+.fc-lookup-progress-top{display:flex;align-items:center;gap:12px}
+.fc-lookup-progress-top>span:nth-child(2){flex:1;min-width:0}
+.fc-lookup-progress strong{display:block;font:700 12px "Space Grotesk",sans-serif;color:var(--green);letter-spacing:.2px}
+.fc-lookup-progress small{display:block;margin-top:4px;color:#c0cbd2;font-size:10px;line-height:1.5}
+.fc-lookup-progress-top>b{font:700 13px "Space Grotesk",sans-serif;color:#e4f5cf}
+.fc-lookup-spinner{width:20px;height:20px;flex:none;border:2px solid #b9f36b35;border-top-color:var(--green);border-radius:50%;animation:fc-spin .8s linear infinite}
+.fc-lookup-progress-track{height:6px;overflow:hidden;margin-top:13px;border-radius:9px;background:#ffffff16}
+.fc-lookup-progress-track>span{display:block;height:100%;border-radius:9px;background:var(--green);box-shadow:0 0 12px #b9f36b66;transition:width .25s ease}
 @keyframes fc-spin{to{transform:rotate(360deg)}}
