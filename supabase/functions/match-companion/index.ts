@@ -686,7 +686,7 @@ function normalizeNationality(value: string): string {
   const aliases: Record<string, string> = {
     usa: "unitedstates", us: "unitedstates", unitedstatesofamerica: "unitedstates",
     england: "england", southkorea: "southkorea", korea: "southkorea",
-    cote divoire: "ivorycoast", coteivoire: "ivorycoast",
+    coteivoire: "ivorycoast",
     turkiye: "turkey",
   };
   return aliases[normalized] || normalized;
