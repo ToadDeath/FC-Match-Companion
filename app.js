@@ -196,7 +196,7 @@ function renderMatch(match, matchId) {
   const candidateDiagnosticsHtml = unmatchedPlayers.map(player => {
     const result = fcRatings[player.key];
     const suggestions = result?.suggestions || [];
-    const fotmobSlug = player.name.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+    const fotmobSlug = player.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
       .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const fotmobUrl = player.fotmobId
       ? `https://www.fotmob.com/players/${encodeURIComponent(player.fotmobId)}/${fotmobSlug}`
