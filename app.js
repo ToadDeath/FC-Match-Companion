@@ -49,14 +49,62 @@ function getTeamLineup(lineup, side, teamId) {
     list[side === "home" ? 0 : 1] || {};
 }
 
+function flattenPlayers(value) {
+  if (!Array.isArray(value)) return [];
+  return value.flat(Infinity).filter(player => player && typeof player === "object" && !Array.isArray(player));
+}
+
 function getPlayers(team) {
-  const players = team?.starters || team?.players || [];
-  return Array.isArray(players) ? players : [];
+  return flattenPlayers(team?.starters || team?.players || []);
 }
 
 function getSubstitutes(team) {
-  const substitutes = team?.subs || team?.substitutes || team?.bench || [];
-  return Array.isArray(substitutes) ? substitutes : [];
+  return flattenPlayers(team?.subs || team?.substitutes || []);
+}
+
+function getBenchPlayers(team, lineup, side, teamId) {
+  let bench = team?.bench || team?.benchPlayers || [];
+  if (!Array.isArray(bench) && bench && typeof bench === "object") {
+    bench = bench.players || bench.bench || bench.substitutes || [];
+  }
+  if (Array.isArray(bench) && bench.length) return flattenPlayers(bench);
+
+  const shared = lineup?.bench;
+  if (Array.isArray(shared)) {
+    const matching = shared.find(item =>
+      String(item?.teamId ?? item?.id ?? "") === String(teamId ?? "") ||
+      item?.side === side || item?.team === side
+    );
+    if (matching) return flattenPlayers(matching.players || matching.bench || matching.subs || []);
+    return flattenPlayers(shared);
+  }
+  if (shared && typeof shared === "object") {
+    const sideData = shared[side] || shared[side === "home" ? "homeTeam" : "awayTeam"] ||
+      shared[side === "home" ? "homePlayers" : "awayPlayers"];
+    if (Array.isArray(sideData)) return flattenPlayers(sideData);
+    if (sideData && typeof sideData === "object") return flattenPlayers(sideData.players || sideData.bench || []);
+  }
+  return [];
+}
+
+function getUnavailablePlayers(team, lineup, side, teamId) {
+  let unavailable = team?.unavailable || team?.nonAvailablePlayers || team?.injured || [];
+  if (Array.isArray(unavailable) && unavailable.length) return flattenPlayers(unavailable);
+  const shared = lineup?.naPlayers || lineup?.unavailable || lineup?.nonAvailablePlayers;
+  if (Array.isArray(shared)) {
+    const matching = shared.find(item =>
+      String(item?.teamId ?? item?.id ?? "") === String(teamId ?? "") ||
+      item?.side === side || item?.team === side
+    );
+    return flattenPlayers(matching?.players || matching?.unavailable || matching || []);
+  }
+  if (shared && typeof shared === "object") {
+    const sideData = shared[side] || shared[side === "home" ? "homeTeam" : "awayTeam"] ||
+      shared[side === "home" ? "homePlayers" : "awayPlayers"];
+    if (Array.isArray(sideData)) return flattenPlayers(sideData);
+    if (sideData && typeof sideData === "object") return flattenPlayers(sideData.players || sideData.unavailable || []);
+  }
+  return [];
 }
 
 function playerRating(player) {
@@ -82,9 +130,10 @@ function collectPlayers(match) {
   const away = getTeamLineup(lineup, "away", awayHeader.id || general.awayTeam?.id);
   const homeName = homeHeader.name || home.name || "Home";
   const awayName = awayHeader.name || away.name || "Away";
-  const collectTeamPlayers = (team, side, teamName) => [
+  const collectTeamPlayers = (team, side, teamName, teamId) => [
     ...getPlayers(team),
     ...getSubstitutes(team),
+    ...getBenchPlayers(team, lineup, side, teamId),
   ].map(player => ({
     key: playerKey(player, side),
     fotmobId: player?.id ?? player?.playerId ?? null,
@@ -93,8 +142,8 @@ function collectPlayers(match) {
     team: teamName,
   }));
   return [
-    ...collectTeamPlayers(home, "home", homeName),
-    ...collectTeamPlayers(away, "away", awayName),
+    ...collectTeamPlayers(home, "home", homeName, homeHeader.id || general.homeTeam?.id),
+    ...collectTeamPlayers(away, "away", awayName, awayHeader.id || general.awayTeam?.id),
   ].filter(player => player.name);
 }
 
@@ -166,31 +215,49 @@ function renderPlayerBubble(player, side, fcRatings, position) {
     '<span class="pitch-player-rating ' + (displayed ? "" : "rating-unavailable") + '">' + safeText(displayed || "—") + "</span></div>";
 }
 
-function renderSubstitute(player, side, fcRatings) {
+function renderRosterPlayer(player, side, fcRatings, kind) {
   const name = player?.name || player?.localizedName || "Unknown player";
   const number = player?.shirtNumber ?? player?.number ?? player?.shirt ?? "";
   const key = playerKey(player, side), fcResult = fcRatings[key];
   const fcRating = fcResult?.rating === null || fcResult?.rating === undefined ? "" : String(fcResult.rating);
   const displayed = ratingMode === "fotmob" ? playerRating(player) : fcRating;
   const photo = playerPhotoUrl(player);
-  return '<div class="sub-player"><span class="sub-number">' + safeText(number || "·") + "</span>" +
-    (photo ? '<img class="sub-face" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : "") +
-    '<span class="sub-name">' + safeText(name) + '</span><span class="sub-rating ' + (displayed ? "" : "rating-unavailable") + '">' + safeText(displayed || "—") + "</span></div>";
+  const position = player?.positionName || player?.position || player?.usualPosition || "";
+  const minute = player?.timeSubbedOn ?? player?.subbedOn ?? player?.substitutionMinute ?? "";
+  const reason = player?.reason || player?.status || player?.injury || "";
+  const detail = kind === "sub" && minute !== "" ? safeText(String(minute).replace(/['’]$/, "")) + "′" :
+    kind === "unavailable" ? safeText(typeof reason === "object" ? reason.text || reason.name || reason.label || "" : reason) : "";
+  return '<div class="roster-player ' + kind + '">' +
+    '<span class="roster-number">' + safeText(number || "·") + "</span>" +
+    (photo ? '<img class="roster-face" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="roster-face roster-face-empty"></span>') +
+    '<span class="roster-copy"><strong>' + safeText(name) + '</strong><small>' + safeText(position) + (detail ? ' · ' + detail : "") + '</small></span>' +
+    '<span class="roster-rating ' + (displayed ? "" : "rating-unavailable") + '">' + safeText(displayed || "—") + "</span></div>";
 }
 
-function renderTeam(team, side, headerTeam, fcRatings) {
+function renderRosterSection(title, players, side, fcRatings, kind) {
+  const rows = players.map(player => renderRosterPlayer(player, side, fcRatings, kind)).join("");
+  return '<section class="roster-card"><h4>' + safeText(title) + '</h4><div class="roster-list">' +
+    (rows || '<p class="lineup-empty">None listed</p>') + '</div></section>';
+}
+
+function renderTeam(team, side, headerTeam, fcRatings, lineup, teamId) {
   const substitutes = getSubstitutes(team);
-  const substitutesHtml = substitutes.length ? substitutes.map(player => renderSubstitute(player, side, fcRatings)).join("") : '<p class="lineup-empty">No substitutes listed</p>';
-  return '<section class="team-lineup"><div class="substitutes"><div class="player-section-heading">' +
-    safeText(team?.name || headerTeam?.name || (side === "home" ? "Home" : "Away")) + '<span>' + substitutes.length + '</span></div><div class="sub-list">' + substitutesHtml + "</div></div></section>";
+  const bench = getBenchPlayers(team, lineup, side, teamId);
+  return '<div class="team-rosters">' +
+    renderRosterSection("Substitutes", substitutes, side, fcRatings, "sub") +
+    renderRosterSection("Bench", bench, side, fcRatings, "bench") +
+    '</div>';
 }
 
 function renderTeamPitchHeader(team, headerTeam, side) {
   const name = team?.name || headerTeam?.name || (side === "home" ? "Home" : "Away");
   const crest = headerTeam?.imageUrl || team?.imageUrl || "";
+  const rating = team?.rating ?? team?.averageRating ?? "";
   return '<div class="pitch-team-label ' + side + '">' +
+    (side === "home" && rating !== "" ? '<span class="team-average-rating">' + safeText(rating) + '</span>' : "") +
     (crest ? '<img src="' + safeText(crest) + '" alt="" loading="lazy">' : "") +
-    '<span>' + safeText(name) + '</span><small>' + safeText(team?.formation || "") + "</small></div>";
+    '<span>' + safeText(name) + '</span><small>' + safeText(team?.formation || "") + '</small>' +
+    (side === "away" && rating !== "" ? '<span class="team-average-rating away-rating">' + safeText(rating) + '</span>' : "") + '</div>';
 }
 
 function renderCombinedPitch(home, away, homeHeader, awayHeader, fcRatings) {
@@ -227,6 +294,10 @@ function renderMatch(match, matchId) {
   const title = `${homeName} vs ${awayName}`;
   const homeTeam = { ...home, name: home.name || homeName };
   const awayTeam = { ...away, name: away.name || awayName };
+  const homeBench = getBenchPlayers(homeTeam, lineup, "home", homeHeader.id || general.homeTeam?.id);
+  const awayBench = getBenchPlayers(awayTeam, lineup, "away", awayHeader.id || general.awayTeam?.id);
+  const homeUnavailable = getUnavailablePlayers(homeTeam, lineup, "home", homeHeader.id || general.homeTeam?.id);
+  const awayUnavailable = getUnavailablePlayers(awayTeam, lineup, "away", awayHeader.id || general.awayTeam?.id);
   const hasLineup = getPlayers(homeTeam).length || getSubstitutes(homeTeam).length ||
     getPlayers(awayTeam).length || getSubstitutes(awayTeam).length;
 
@@ -281,8 +352,12 @@ function renderMatch(match, matchId) {
     <div class="lineups-grid">
       ${renderCombinedPitch(homeTeam, awayTeam, homeHeader, awayHeader, fcRatings)}
       <div class="substitutes-grid">
-        ${renderTeam(homeTeam, "home", homeHeader, fcRatings)}
-        ${renderTeam(awayTeam, "away", awayHeader, fcRatings)}
+        ${renderTeam(homeTeam, "home", homeHeader, fcRatings, lineup, homeHeader.id || general.homeTeam?.id)}
+        ${renderTeam(awayTeam, "away", awayHeader, fcRatings, lineup, awayHeader.id || general.awayTeam?.id)}
+      </div>
+      <div class="unavailable-grid">
+        ${renderRosterSection("Injured and suspended players", homeUnavailable, "home", fcRatings, "unavailable")}
+        ${renderRosterSection("Injured and suspended players", awayUnavailable, "away", fcRatings, "unavailable")}
       </div>
     </div>
     ${!hasLineup ? '<p class="lineup-footnote">The match details loaded successfully, but FotMob has not supplied the lineups in this response. Try again once lineups are available.</p>' : ""}
