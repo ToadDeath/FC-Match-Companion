@@ -296,10 +296,8 @@ async function loadFcRatings() {
           fcRatingsProgress: { completed, total: players.length },
         };
         renderMatch(currentMatch.match, currentMatch.matchId);
-        const matchedSoFar = Object.values(combinedRatings)
-          .filter(item => item?.rating !== null && item?.rating !== undefined).length;
         const percent = Math.round(completed / players.length * 100);
-        setStatus(`Matching FC Database players: ${percent}% (${completed}/${players.length}), ${matchedSoFar} matched.`, "loading");
+        setStatus(`Matching FC Database players: ${percent}% (${completed}/${players.length})`, "loading");
       }
 
       if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
