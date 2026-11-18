@@ -109,43 +109,48 @@ function playerInitials(name) {
   return String(name || "?").trim().split(/\\s+/).slice(0, 2).map(part => part[0] || "").join("").toUpperCase();
 }
 
-function getPlayerPitchPositions(team) {
+function getPlayerPitchPositions(team, side) {
   const starters = getPlayers(team);
-  const formationCounts = String(team?.formation || "4-3-3").split("-").map(value => Number.parseInt(value, 10)).filter(value => Number.isFinite(value) && value > 0);
-  const fallback = new Map();
-  const buckets = new Map();
-  const getLine = player => {
-    const position = String(player?.positionName || player?.position || player?.localizedPosition?.label || "").toLowerCase();
-    if (player?.isGoalkeeper || /keeper|goalie|\\bgk\\b/.test(position)) return -1;
-    if (/forward|striker|winger|attacker|second striker|\\bst\\b|\\blw\\b|\\brw\\b|\\bcf\\b/.test(position)) return formationCounts.length - 1;
-    if (/midfielder|midfield|wing.?back|\\bcm\\b|\\bcdm\\b|\\bcam\\b|\\blm\\b|\\brm\\b/.test(position)) return Math.max(0, Math.round((formationCounts.length - 1) / 2));
-    if (/defender|back|centre.?back|\\bcb\\b|\\blb\\b|\\brb\\b/.test(position)) return 0;
-    return null;
-  };
-  starters.forEach((player, index) => {
-    const line = getLine(player);
-    if (line === -1) { fallback.set(player, { x: 50, y: 91 }); return; }
-    const key = line ?? Math.min(formationCounts.length - 1, Math.floor(index / 3));
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(player);
-  });
-  for (const [line, players] of buckets) {
-    const count = players.length;
-    const y = 82 - (line / Math.max(1, formationCounts.length - 1)) * 64;
-    players.forEach((player, index) => fallback.set(player, { x: count === 1 ? 50 : 12 + (76 * index / (count - 1)), y }));
+  const formation = String(team?.formation || "4-3-3");
+  const lines = formation.split("-").map(value => Number.parseInt(value, 10)).filter(value => Number.isFinite(value) && value > 0);
+  const formationRows = [1, ...lines];
+  const positions = new Map();
+  const hasHorizontal = starters.some(player => Number.isFinite(Number(player?.horizontalLayout?.x)) && Number.isFinite(Number(player?.horizontalLayout?.y)));
+  if (hasHorizontal) {
+    starters.forEach(player => {
+      const layout = player?.horizontalLayout;
+      if (!layout || !Number.isFinite(Number(layout.x)) || !Number.isFinite(Number(layout.y))) return;
+      const rawX = Number(layout.x), rawY = Number(layout.y);
+      const localX = Math.max(0, Math.min(1, rawX));
+      const localY = Math.max(0, Math.min(1, rawY));
+      const x = side === "home" ? 3 + localX * 45 : 97 - localX * 45;
+      const y = 7 + localY * 86;
+      positions.set(player, { x, y });
+    });
   }
-  return starters.map((player, index) => {
-    const layout = player?.horizontalLayout || player?.layout || {};
-    let x = Number(layout.x), y = Number(layout.y);
-    if (Number.isFinite(x) && Number.isFinite(y)) {
-      if (x >= 0 && x <= 1) x *= 100;
-      if (y >= 0 && y <= 1) y *= 100;
-      x = Math.max(7, Math.min(93, x)); y = Math.max(7, Math.min(93, y));
-    } else ({ x, y } = fallback.get(player) || { x: 50, y: 50 });
-    return { player, x, y, index };
-  });
+  if (positions.size < starters.length) {
+    const rows = formationRows.map((count, index) => ({ count, index }));
+    let cursor = 0;
+    starters.forEach((player, playerIndex) => {
+      if (positions.has(player)) return;
+      let rowIndex = 0, colIndex = 0;
+      for (const row of rows) {
+        if (cursor < row.count) { rowIndex = row.index; colIndex = cursor; break; }
+        cursor -= row.count; rowIndex = row.index + 1;
+      }
+      const count = rows[Math.min(rowIndex, rows.length - 1)]?.count || 1;
+      const lineCount = rows.length;
+      const localX = lineCount <= 1 ? .5 : .08 + (.84 * rowIndex / (lineCount - 1));
+      const localY = count === 1 ? .5 : .12 + (.76 * colIndex / (count - 1));
+      positions.set(player, {
+        x: side === "home" ? 3 + localX * 45 : 97 - localX * 45,
+        y: 7 + localY * 86
+      });
+      cursor++;
+    });
+  }
+  return starters.map((player, index) => ({ player, ...(positions.get(player) || { x: side === "home" ? 25 : 75, y: 50 }), index }));
 }
-
 function renderPlayerBubble(player, side, fcRatings, position) {
   const name = player?.name || player?.localizedName || "Unknown player";
   const number = player?.shirtNumber ?? player?.number ?? player?.shirt ?? "";
@@ -154,7 +159,7 @@ function renderPlayerBubble(player, side, fcRatings, position) {
   const displayed = ratingMode === "fotmob" ? playerRating(player) : fcRating;
   const photo = playerPhotoUrl(player);
   const photoMarkup = photo ? '<img class="player-face" src="' + safeText(photo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : "";
-  const fallbackMarkup = '<span class="player-face-fallback" ' + (photo ? "hidden" : "") + '>' + safeText(playerInitials(name)) + "</span>";
+  const fallbackMarkup = '<span class="player-face-fallback" aria-hidden="true" ' + (photo ? "hidden" : "") + '></span>";
   return '<div class="pitch-player" style="--player-x:' + position.x + '%;--player-y:' + position.y + '%" title="' + safeText(name) + '">' +
     '<span class="player-face-wrap">' + photoMarkup + fallbackMarkup +
     (number !== "" ? '<span class="player-shirt-number">' + safeText(number) + "</span>" : "") + "</span>" +
@@ -175,16 +180,30 @@ function renderSubstitute(player, side, fcRatings) {
 }
 
 function renderTeam(team, side, headerTeam, fcRatings) {
-  const starters = getPlayers(team), substitutes = getSubstitutes(team);
-  const teamName = team?.name || headerTeam?.name || (side === "home" ? "Home team" : "Away team");
-  const crest = headerTeam?.imageUrl || team?.imageUrl || "", formation = team?.formation || "";
-  const pitchPlayers = getPlayerPitchPositions(team).map(({ player, x, y }) => renderPlayerBubble(player, side, fcRatings, { x, y })).join("");
+  const substitutes = getSubstitutes(team);
   const substitutesHtml = substitutes.length ? substitutes.map(player => renderSubstitute(player, side, fcRatings)).join("") : '<p class="lineup-empty">No substitutes listed</p>';
-  return '<section class="team-lineup"><div class="team-heading">' +
-    (crest ? '<img class="team-crest" src="' + safeText(crest) + '" alt="" loading="lazy">' : '<span class="team-crest-placeholder"></span>') +
-    '<div class="team-heading-copy"><h3>' + safeText(teamName) + '</h3><span>' + safeText(formation || "Starting XI") + '</span></div><span class="player-count">' + starters.length + '/11</span></div>' +
-    '<div class="team-pitch" aria-label="' + safeText(teamName) + ' starting lineup"><div class="pitch-mark pitch-halfway"></div><div class="pitch-mark pitch-center-circle"></div><div class="pitch-mark pitch-center-spot"></div><div class="pitch-mark pitch-box-top"></div><div class="pitch-mark pitch-box-bottom"></div><div class="pitch-mark pitch-six-top"></div><div class="pitch-mark pitch-six-bottom"></div><div class="pitch-mark pitch-penalty-top"></div><div class="pitch-mark pitch-penalty-bottom"></div>' + pitchPlayers + "</div>" +
-    '<div class="substitutes"><div class="player-section-heading">SUBSTITUTES <span>' + substitutes.length + '</span></div><div class="sub-list">' + substitutesHtml + "</div></div></section>";
+  return '<section class="team-lineup"><div class="substitutes"><div class="player-section-heading">' +
+    safeText(team?.name || headerTeam?.name || (side === "home" ? "Home" : "Away")) + '<span>' + substitutes.length + '</span></div><div class="sub-list">' + substitutesHtml + "</div></div></section>";
+}
+
+function renderTeamPitchHeader(team, headerTeam, side) {
+  const name = team?.name || headerTeam?.name || (side === "home" ? "Home" : "Away");
+  const crest = headerTeam?.imageUrl || team?.imageUrl || "";
+  return '<div class="pitch-team-label ' + side + '">' +
+    (crest ? '<img src="' + safeText(crest) + '" alt="" loading="lazy">' : "") +
+    '<span>' + safeText(name) + '</span><small>' + safeText(team?.formation || "") + "</small></div>";
+}
+
+function renderCombinedPitch(home, away, homeHeader, awayHeader, fcRatings) {
+  const players = [
+    ...getPlayerPitchPositions(home, "home").map(item => renderPlayerBubble(item.player, "home", fcRatings, item)),
+    ...getPlayerPitchPositions(away, "away").map(item => renderPlayerBubble(item.player, "away", fcRatings, item))
+  ].join("");
+  return '<div class="combined-pitch-card"><div class="combined-pitch-headings">' +
+    renderTeamPitchHeader(home, homeHeader, "home") + renderTeamPitchHeader(away, awayHeader, "away") +
+    '</div><div class="combined-pitch" aria-label="Both starting lineups on one football pitch">' +
+    '<div class="pitch-boundary"></div><div class="pitch-halfway"></div><div class="pitch-center-circle"></div><div class="pitch-center-spot"></div>' +
+    '<div class="pitch-box-left"></div><div class="pitch-box-right"></div><div class="pitch-six-left"></div><div class="pitch-six-right"></div>' + players + "</div></div>";
 }
 function renderMatch(match, matchId) {
   const general = match?.general || {};
@@ -261,8 +280,11 @@ function renderMatch(match, matchId) {
     </div>
     <div class="lineups-heading"><div><span class="stage-kicker">MATCH LINEUPS</span><h3>Starting XI</h3></div><span class="lineup-note">${hasLineup ? (ratingMode === "fc" ? "FC Database ratings" : "FotMob match ratings") : "Lineups may not be published yet"}</span></div>
     <div class="lineups-grid">
-      ${renderTeam(homeTeam, "home", homeHeader, fcRatings)}
-      ${renderTeam(awayTeam, "away", awayHeader, fcRatings)}
+      ${renderCombinedPitch(homeTeam, awayTeam, homeHeader, awayHeader, fcRatings)}
+      <div class="substitutes-grid">
+        ${renderTeam(homeTeam, "home", homeHeader, fcRatings)}
+        ${renderTeam(awayTeam, "away", awayHeader, fcRatings)}
+      </div>
     </div>
     ${!hasLineup ? '<p class="lineup-footnote">The match details loaded successfully, but FotMob has not supplied the lineups in this response. Try again once lineups are available.</p>' : ""}
     ${currentMatch.fcRatingsLoading ? (() => {
