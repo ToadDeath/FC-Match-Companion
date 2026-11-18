@@ -460,7 +460,10 @@ function positionTokens(value: unknown): string[] {
   if (Array.isArray(value)) return value.flatMap(positionTokens);
   if (value && typeof value === "object") {
     const item = value as Record<string, unknown>;
-    return positionTokens(item.code ?? item.abbreviation ?? item.name ?? item.position);
+    const direct = item.code ?? item.abbreviation ?? item.shortName ?? item.key ??
+      item.name ?? item.label ?? item.position ?? item.primary ?? item.main;
+    if (direct != null) return positionTokens(direct);
+    return Object.values(item).flatMap(positionTokens);
   }
   return String(value ?? "")
     .split(/[,/| ]+/)
