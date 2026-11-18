@@ -277,7 +277,7 @@ async function loadFcRatings() {
   const lookupPromise = (async () => {
     try {
       const combinedRatings = { ...(currentMatch.fcRatings || {}) };
-      const batchSize = 5;
+      const batchSize = 2;
 
       for (let offset = 0; offset < players.length; offset += batchSize) {
         const batch = players.slice(offset, offset + batchSize);
@@ -298,7 +298,8 @@ async function loadFcRatings() {
         renderMatch(currentMatch.match, currentMatch.matchId);
         const matchedSoFar = Object.values(combinedRatings)
           .filter(item => item?.rating !== null && item?.rating !== undefined).length;
-        setStatus(`Checking FC Database players: ${completed} of ${players.length} checked, ${matchedSoFar} matched.`, "loading");
+        const percent = Math.round(completed / players.length * 100);
+        setStatus(`Matching FC Database players: ${percent}% (${completed}/${players.length}), ${matchedSoFar} matched.`, "loading");
       }
 
       if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
