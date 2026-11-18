@@ -341,11 +341,11 @@ function rankCandidates(
       (requestedClub === candidateClub ||
        requestedClub.includes(candidateClub) ||
        candidateClub.includes(requestedClub)));
-    const candidatePosition = normalizePosition(
-      candidate.position ?? candidate.positions ?? candidate.primaryPosition ?? ""
-    );
-    const positionScore = getPositionMatchScore(requestedPosition, candidatePosition);
-    const positionConflict = Boolean(requestedPosition && candidatePosition && positionScore === 0);
+    const candidatePositionValue =
+      candidate.position ?? candidate.positions ?? candidate.primaryPosition ?? "";
+    const positionScore = getPositionMatchScore(requestedPosition, candidatePositionValue);
+    const hasCandidatePosition = positionTokens(candidatePositionValue).length > 0;
+    const positionConflict = Boolean(requestedPosition && hasCandidatePosition && positionScore === 0);
 
     // Never let a surname-only match through without both club and position.
     if (surnameOnly && (!clubMatch || positionScore === 0)) return null;
@@ -402,9 +402,11 @@ function normalizeClub(value: string): string {
     .replace(/^(club|cf|fc|afc|deportivo|cd|real)/, "");
 }
 
-function getPositionMatchScore(a: string, b: string): number {
-  if (!a || !b) return 0;
-  if (a === b) return 30;
+function getPositionMatchScore(requested: string, candidateValue: unknown): number {
+  if (!requested) return 0;
+  const candidates = positionTokens(candidateValue);
+  if (!candidates.length) return 0;
+
   const group = (position: string) => {
     if (["GK", "GOALKEEPER"].includes(position)) return "GK";
     if (["CB", "LCB", "RCB", "LB", "RB", "LWB", "RWB", "DEF", "DEFENDER"].includes(position)) return "DEF";
@@ -412,9 +414,22 @@ function getPositionMatchScore(a: string, b: string): number {
     if (["LW", "RW", "LF", "RF", "ST", "CF", "ATT", "ATTACKER", "FORWARD"].includes(position)) return "ATT";
     return position;
   };
-  // Broad FotMob position labels can confirm a group, but don't carry the
-  // same weight as an exact role such as CB or RB.
-  return group(a) === group(b) ? 12 : 0;
+
+  return Math.max(...candidates.map(position =>
+    requested === position ? 30 : group(requested) === group(position) ? 12 : 0
+  ));
+}
+
+function positionTokens(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(positionTokens);
+  if (value && typeof value === "object") {
+    const item = value as Record<string, unknown>;
+    return positionTokens(item.code ?? item.abbreviation ?? item.name ?? item.position);
+  }
+  return String(value ?? "")
+    .split(/[,/| ]+/)
+    .map(part => normalizePosition(part))
+    .filter(Boolean);
 }
 
 async function fetchFCRadarPlayerById(playerId: string, apiKey: string): Promise<FCRadarPlayer | undefined> {
