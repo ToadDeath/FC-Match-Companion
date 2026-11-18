@@ -564,7 +564,7 @@ function rankCandidates(
   const ranked = candidates.map(candidate => {
     const names = getCandidateNames(candidate).map(normalize);
     const exactName = names.some(name => acceptedNames.has(name));
-    const surname = normalize(player.name.trim().split(/\\s+/).slice(-1)[0] || "");
+    const surname = normalize(player.name.trim().split(/\s+/).slice(-1)[0] || "");
     const surnameOnly = !exactName && surname.length >= 4 && names.some(name =>
       name === surname || name.includes(surname)
     );
