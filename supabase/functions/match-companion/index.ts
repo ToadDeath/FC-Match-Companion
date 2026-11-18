@@ -21,6 +21,7 @@ interface RatingResult {
   playerName?: string;
   club?: string;
   playerId?: string | number;
+  fcradarUrl?: string;
   source?: "cache" | "fcradar";
   suggestions?: Array<{ id: string; name: string; club: string; position: string; rating: number | null; url: string }>;
 }
@@ -220,6 +221,7 @@ async function getCachedRatings(
       playerName: String(identity.player_name || player.name),
       club: String(cachedRating.club_name || ""),
       playerId: String(identity.fcradar_player_id),
+      fcradarUrl: buildFCRadarProfileUrl(String(identity.fcradar_player_id), identity.player_name || player.name),
       source: "cache",
     };
   }
@@ -453,6 +455,7 @@ async function lookupPlayer(
     playerName,
     club,
     playerId,
+    fcradarUrl: buildFCRadarProfileUrl(playerId, playerName),
     source: "fcradar",
   };
 }
@@ -728,6 +731,12 @@ function positionTokens(value: unknown): string[] {
     .split(/[,/| ]+/)
     .map(part => normalizePosition(part))
     .filter(Boolean);
+}
+
+function buildFCRadarProfileUrl(playerId: string, playerName: string): string {
+  const slug = playerName.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return `https://fcradar.gg/${GAME_CODE}/players/latest/${slug}/${encodeURIComponent(playerId)}`;
 }
 
 async function fetchFCRadarPlayerById(playerId: string, apiKey: string): Promise<FCRadarPlayer | undefined> {
