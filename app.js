@@ -80,12 +80,14 @@ function collectPlayers(match) {
   return [
     ...getPlayers(home).map(player => ({
       key: playerKey(player, "home"),
+      fotmobId: player?.id ?? player?.playerId ?? null,
       name: player?.name || player?.localizedName || "",
       position: player?.positionName || player?.position || player?.usualPosition || "",
       team: homeName,
     })),
     ...getPlayers(away).map(player => ({
       key: playerKey(player, "away"),
+      fotmobId: player?.id ?? player?.playerId ?? null,
       name: player?.name || player?.localizedName || "",
       position: player?.positionName || player?.position || player?.usualPosition || "",
       team: awayName,
