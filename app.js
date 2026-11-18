@@ -82,7 +82,7 @@ function getBenchPlayers(team, lineup, side, teamId) {
       item?.side === side || item?.team === side
     );
     if (matching) return flattenPlayers(matching.players || matching.bench || matching.subs || []);
-    return flattenPlayers(shared);
+    return [];
   }
   if (shared && typeof shared === "object") {
     const sideData = shared[side] || shared[side === "home" ? "homeTeam" : "awayTeam"] ||
@@ -102,7 +102,7 @@ function getUnavailablePlayers(team, lineup, side, teamId) {
       String(item?.teamId ?? item?.id ?? "") === String(teamId ?? "") ||
       item?.side === side || item?.team === side
     );
-    return flattenPlayers(matching?.players || matching?.unavailable || matching || []);
+    return matching ? flattenPlayers(matching.players || matching.unavailable || matching.playersUnavailable || []) : [];
   }
   if (shared && typeof shared === "object") {
     const sideData = shared[side] || shared[side === "home" ? "homeTeam" : "awayTeam"] ||
