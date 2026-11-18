@@ -12,7 +12,7 @@ interface PlayerRequest {
   name: string;
   position?: string;
   team?: string;
-  nationality?: string;
+  nationality?: unknown;
 }
 
 interface RatingResult {
@@ -554,7 +554,7 @@ function rankCandidates(
 ): { selected?: FCRadarPlayer; source?: string; ambiguous: boolean } {
   const requestedName = normalize(player.name);
   const requestedClub = normalizeClub(player.team || "");
-  const requestedNationality = normalizeNationality(player.nationality || "");
+  const requestedNationality = normalizeNationality(getNationalityName(player.nationality));
   const requestedPosition = normalizePosition(player.position || "");
   const aliases: Record<string, string[]> = {
     franciswestfield: ["frankiewestfield"],
@@ -591,7 +591,7 @@ function rankCandidates(
     const score = (exactName ? 100 : 45) +
       (exactClubMatch ? 55 : clubMatch ? 35 : 0) +
       (nationalityMatch ? 45 : 0) +
-      Math.min(positionScore, 3);
+      (positionScore >= 30 ? 3 : positionScore > 0 ? 1 : 0);
     return {
       candidate,
       score,
