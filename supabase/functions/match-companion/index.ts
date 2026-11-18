@@ -120,7 +120,7 @@ async function lookupPlayer(
     identity = data;
   }
 
-  // A 30-day rating cache is edition-specific, while the player identity is not.
+  // A 14-day rating cache is edition-specific, while the player identity is not.
   if (identity?.fcradar_player_id) {
     const { data, error } = await db
       .from("fc_player_ratings")
@@ -145,6 +145,7 @@ async function lookupPlayer(
   }
 
   let fcradarPlayer: FCRadarPlayer | undefined;
+  let identitySource = "fcradar_verified_id";
   if (identity?.fcradar_player_id) {
     fcradarPlayer = await fetchFCRadarPlayerById(String(identity.fcradar_player_id), apiKey);
     if (!fcradarPlayer) {
@@ -161,6 +162,7 @@ async function lookupPlayer(
     const lookup = await findFCRadarPlayer(player, apiKey);
     if (lookup.status !== "matched" || !lookup.player) return lookup;
     fcradarPlayer = lookup.player;
+    identitySource = lookup.source || "fcradar_name_club_position";
   }
 
   const fcradarId = fcradarPlayer.id ?? fcradarPlayer.playerId;
@@ -178,12 +180,8 @@ async function lookupPlayer(
     return { rating: null, status: "not_found", playerId };
   }
 
-  const playerName = String(
-    fcradarPlayer.name ??
-    fcradarPlayer.common_name ??
-    [fcradarPlayer.first_name, fcradarPlayer.last_name].filter(Boolean).join(" ") ??
-    player.name
-  );
+  // FotMob remains the display-name source of truth. FCRadar names are matching metadata only.
+  const playerName = player.name;
   const clubValue = fcradarPlayer.club;
   const club = String(
     (clubValue && typeof clubValue === "object"
@@ -201,7 +199,7 @@ async function lookupPlayer(
     common_name: nullableString(fcradarPlayer.common_name),
     first_name: nullableString(fcradarPlayer.first_name),
     last_name: nullableString(fcradarPlayer.last_name),
-    identity_source: "fcradar_exact_name",
+    identity_source: identitySource,
     last_seen_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -245,62 +243,178 @@ async function lookupPlayer(
 async function findFCRadarPlayer(
   player: PlayerRequest,
   apiKey: string,
-): Promise<{ status: "matched" | "not_found" | "ambiguous"; player?: FCRadarPlayer; rating: number | null }> {
-  const url = new URL(FCRADAR_PLAYERS_URL);
-  url.searchParams.set("search", player.name);
-  url.searchParams.set("pageSize", "10");
+): Promise<{ status: "matched" | "not_found" | "ambiguous"; player?: FCRadarPlayer; rating: number | null; source?: string }> {
+  const queryNames = buildSearchNames(player.name);
+  const allCandidates = new Map<string, FCRadarPlayer>();
 
-  const response = await fetch(url, {
-    headers: { Accept: "application/json", Authorization: `Bearer ${apiKey}` },
-  });
+  // Search the full FotMob name first. Only broaden the search when that does not
+  // produce a credible candidate, keeping API usage low for ordinary matches.
+  for (const query of queryNames) {
+    const url = new URL(FCRADAR_PLAYERS_URL);
+    url.searchParams.set("search", query);
+    url.searchParams.set("pageSize", "100");
 
-  if (response.status === 429) {
-    console.warn("FCRadar rate limit reached during player search");
-    return { rating: null, status: "not_found" };
+    const response = await fetch(url, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${apiKey}` },
+    });
+
+    if (response.status === 429) {
+      console.warn("FCRadar rate limit reached during player search");
+      return { rating: null, status: "not_found" };
+    }
+    if (!response.ok) {
+      console.error("FCRadar search failed:", response.status, (await response.text()).slice(0, 300));
+      throw new Error(`FCRadar returned HTTP ${response.status}.`);
+    }
+
+    const candidates = extractPlayers(await response.json());
+    for (const candidate of candidates) {
+      const id = candidate.id ?? candidate.playerId;
+      if (id != null) allCandidates.set(String(id), candidate);
+    }
+
+    const ranked = rankCandidates(player, [...allCandidates.values()]);
+    if (ranked.selected) {
+      console.info("FCRadar player matched:", {
+        requestedName: player.name,
+        playerId: ranked.selected.id ?? ranked.selected.playerId,
+        matchSource: ranked.source,
+        candidateCount: allCandidates.size,
+        fotmobId: player.fotmobId ?? null,
+      });
+      return { rating: null, status: "matched", player: ranked.selected, source: ranked.source };
+    }
+
+    // An exact-name search with an unresolved ambiguity may benefit from a
+    // surname/known-alias query, so continue through the small query list.
   }
-  if (!response.ok) {
-    console.error("FCRadar search failed:", response.status, (await response.text()).slice(0, 300));
-    throw new Error(`FCRadar returned HTTP ${response.status}.`);
-  }
 
-  const payload = await response.json();
-  const candidates = extractPlayers(payload);
-  console.info("FCRadar player search:", {
+  const ranked = rankCandidates(player, [...allCandidates.values()]);
+  console.info("FCRadar player not confidently matched:", {
     requestedName: player.name,
-    httpStatus: response.status,
-    candidateCount: candidates.length,
+    requestedClub: player.team || null,
+    requestedPosition: player.position || null,
+    candidateCount: allCandidates.size,
+    status: ranked.ambiguous ? "ambiguous" : "not_found",
     fotmobId: player.fotmobId ?? null,
   });
+  return { rating: null, status: ranked.ambiguous ? "ambiguous" : "not_found" };
+}
 
-  const requested = normalize(player.name);
-  const exact = candidates.filter(candidate => {
-    const firstLast = [candidate.first_name, candidate.last_name]
-      .filter(value => typeof value === "string" && value.trim())
-      .join(" ");
-    const names = [
-      candidate.name,
-      candidate.fullName,
-      candidate.shortName,
-      candidate.common_name,
-      firstLast,
-    ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
-    return names.some(name => normalize(name) === requested);
-  });
+function buildSearchNames(name: string): string[] {
+  const queries = [name.trim()];
+  const normalized = normalize(name);
+  const aliases: Record<string, string[]> = {
+    franciswestfield: ["Frankie Westfield"],
+  };
+  for (const alias of aliases[normalized] || []) queries.push(alias);
 
-  let selected: FCRadarPlayer | undefined;
-  if (exact.length === 1) {
-    selected = exact[0];
-  } else if (exact.length > 1 && player.position) {
-    const positionMatches = exact.filter(candidate =>
-      normalizePosition(candidate.position ?? candidate.positions) === normalizePosition(player.position)
+  const parts = name.trim().split(/\\s+/).filter(Boolean);
+  if (parts.length > 1) queries.push(parts[parts.length - 1]);
+
+  return [...new Set(queries.filter(Boolean))].slice(0, 3);
+}
+
+function rankCandidates(
+  player: PlayerRequest,
+  candidates: FCRadarPlayer[],
+): { selected?: FCRadarPlayer; source?: string; ambiguous: boolean } {
+  const requestedName = normalize(player.name);
+  const requestedClub = normalizeClub(player.team || "");
+  const requestedPosition = normalizePosition(player.position || "");
+  const aliases: Record<string, string[]> = {
+    franciswestfield: ["frankiewestfield"],
+  };
+  const acceptedNames = new Set([requestedName, ...(aliases[requestedName] || [])]);
+
+  const ranked = candidates.map(candidate => {
+    const names = getCandidateNames(candidate).map(normalize);
+    const exactName = names.some(name => acceptedNames.has(name));
+    const surname = normalize(player.name.trim().split(/\\s+/).slice(-1)[0] || "");
+    const surnameOnly = !exactName && surname.length >= 4 && names.some(name =>
+      name === surname || name.split(/[^a-z0-9]+/).includes(surname)
     );
-    if (positionMatches.length === 1) selected = positionMatches[0];
-  }
+    if (!exactName && !surnameOnly) return null;
 
-  if (!selected) {
-    return { rating: null, status: exact.length > 1 ? "ambiguous" : "not_found" };
+    const candidateClub = normalizeClub(getCandidateClub(candidate));
+    const clubMatch = Boolean(requestedClub && candidateClub &&
+      (requestedClub === candidateClub ||
+       requestedClub.includes(candidateClub) ||
+       candidateClub.includes(requestedClub)));
+    const candidatePosition = normalizePosition(
+      candidate.position ?? candidate.positions ?? candidate.primaryPosition ?? ""
+    );
+    const positionMatch = Boolean(requestedPosition && candidatePosition &&
+      positionsCompatible(requestedPosition, candidatePosition));
+    const positionConflict = Boolean(requestedPosition && candidatePosition &&
+      !positionsCompatible(requestedPosition, candidatePosition));
+
+    // Never let a surname-only match through without both club and position.
+    if (surnameOnly && (!clubMatch || !positionMatch)) return null;
+    // A specific position conflict is a hard rejection, not a small penalty.
+    if (positionConflict) return null;
+
+    const score = (exactName ? 100 : 45) +
+      (clubMatch ? 45 : 0) +
+      (positionMatch ? 30 : 0);
+    return {
+      candidate,
+      score,
+      source: surnameOnly ? "fcradar_surname_club_position"
+        : acceptedNames.has(names.find(name => acceptedNames.has(name)) || "")
+          ? "fcradar_exact_or_alias_name"
+          : "fcradar_name_club_position",
+    };
+  }).filter((item): item is { candidate: FCRadarPlayer; score: number; source: string } => item !== null)
+    .sort((a, b) => b.score - a.score);
+
+  if (!ranked.length) return { ambiguous: false };
+  if (ranked.length === 1) return { selected: ranked[0].candidate, source: ranked[0].source, ambiguous: false };
+
+  const first = ranked[0];
+  const second = ranked[1];
+  // Require a clear lead when multiple same-name candidates exist.
+  if (first.score > second.score && first.score - second.score >= 20) {
+    return { selected: first.candidate, source: first.source, ambiguous: false };
   }
-  return { rating: null, status: "matched", player: selected };
+  return { ambiguous: true };
+}
+
+function getCandidateNames(candidate: FCRadarPlayer): string[] {
+  const firstLast = [candidate.first_name, candidate.last_name]
+    .filter(value => typeof value === "string" && value.trim())
+    .join(" ");
+  return [
+    candidate.name, candidate.fullName, candidate.shortName,
+    candidate.common_name, candidate.playerName, firstLast,
+  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+}
+
+function getCandidateClub(candidate: FCRadarPlayer): string {
+  const value = candidate.club ?? candidate.clubName ?? candidate.team ?? candidate.teamName;
+  if (value && typeof value === "object") {
+    const club = value as Record<string, unknown>;
+    return String(club.name ?? club.shortName ?? club.displayName ?? "");
+  }
+  return String(value ?? "");
+}
+
+function normalizeClub(value: string): string {
+  return normalize(value)
+    .replace(/^(club|cf|fc|afc|deportivo|cd|real)/, "");
+}
+
+function positionsCompatible(a: string, b: string): boolean {
+  if (!a || !b) return true;
+  if (a === b) return true;
+  const group = (position: string) => {
+    if (["GK", "GOALKEEPER"].includes(position)) return "GK";
+    if (["CB", "LCB", "RCB", "LB", "RB", "LWB", "RWB", "DEF", "DEFENDER"].includes(position)) return "DEF";
+    if (["CDM", "CM", "CAM", "LM", "RM", "MID", "MIDFIELDER"].includes(position)) return "MID";
+    if (["LW", "RW", "LF", "RF", "ST", "CF", "ATT", "ATTACKER", "FORWARD"].includes(position)) return "ATT";
+    return position;
+  };
+  return group(a) === group(b);
 }
 
 async function fetchFCRadarPlayerById(playerId: string, apiKey: string): Promise<FCRadarPlayer | undefined> {
