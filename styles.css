@@ -213,3 +213,34 @@
 .pitch-player-rating.rating-fc-yellow,.roster-rating.rating-fc-yellow{background:#fcc419;color:#302600;border-color:transparent}
 .pitch-player-rating.rating-fc-light-green,.roster-rating.rating-fc-light-green{background:#66a80f;color:#fff;border-color:transparent}
 .pitch-player-rating.rating-fc-dark-green,.roster-rating.rating-fc-dark-green{background:#2b8a3e;color:#fff;border-color:transparent}
+
+
+/* Keep substitute and bench portraits anchored inside their own roster row. */
+.roster-player{
+  display:grid;
+  grid-template-columns:18px 29px minmax(0,1fr) auto;
+  align-items:center;
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+}
+.roster-player>.roster-face,
+.roster-player>.roster-face-empty{
+  display:block;
+  position:static;
+  float:none;
+  grid-column:2;
+  grid-row:1;
+  width:29px;
+  height:29px;
+  min-width:29px;
+  max-width:29px;
+  margin:0;
+  align-self:center;
+  justify-self:center;
+  flex:none;
+  transform:none;
+}
+.roster-player>.roster-number{grid-column:1;grid-row:1}
+.roster-player>.roster-copy{grid-column:3;grid-row:1;min-width:0}
+.roster-player>.roster-rating{grid-column:4;grid-row:1;justify-self:end}
