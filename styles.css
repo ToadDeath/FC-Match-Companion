@@ -192,3 +192,12 @@
 .fc-roster-row--sub .fc-roster-copy small{color:#9aa8b1}
 .fc-roster-row--unavailable .fc-roster-copy small{color:#a1aab0}
 @media(max-width:700px){.fc-roster-columns{grid-template-columns:minmax(0,1fr);gap:0;padding:3px 12px 7px}.fc-roster-row{min-height:46px}}
+
+
+/* Starting XI: FotMob centers shirt number and surname beneath the portrait. */
+.pitch-player{width:64px;gap:2px}
+.pitch-player-portrait-row{position:relative;display:flex;justify-content:center;align-items:center;width:64px;min-height:39px;gap:0}
+.pitch-player-portrait-row .player-face-wrap{flex:0 0 37px}
+.pitch-player-portrait-row .pitch-player-rating{position:absolute;left:calc(50% + 19px);top:1px;z-index:2}
+.pitch-player-name{display:block;width:52px;max-width:52px;margin:0 auto;text-align:center;white-space:normal;line-height:1.15}
+.pitch-player-name b{display:inline;color:#aeb4b9;font-weight:600}
