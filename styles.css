@@ -194,10 +194,11 @@
 @media(max-width:700px){.fc-roster-columns{grid-template-columns:minmax(0,1fr);gap:0;padding:3px 12px 7px}.fc-roster-row{min-height:46px}}
 
 
-/* Starting XI: FotMob centers shirt number and surname beneath the portrait. */
-.pitch-player{width:64px;gap:2px}
-.pitch-player-portrait-row{position:relative;display:flex;justify-content:center;align-items:center;width:64px;min-height:39px;gap:0}
+/* Starting XI: keep shirt number and surname centered on one unbroken line. */
+.pitch-player{width:88px;gap:2px}
+.pitch-player-portrait-row{position:relative;display:flex;justify-content:center;align-items:center;width:88px;min-height:39px;gap:0}
 .pitch-player-portrait-row .player-face-wrap{flex:0 0 37px}
 .pitch-player-portrait-row .pitch-player-rating{position:absolute;left:calc(50% + 19px);top:1px;z-index:2}
-.pitch-player-name{display:block;width:52px;max-width:52px;margin:0 auto;text-align:center;white-space:normal;line-height:1.15}
+.pitch-player-name{display:block;box-sizing:border-box;width:88px;max-width:88px;margin:0 auto;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.15}
 .pitch-player-name b{display:inline;color:#aeb4b9;font-weight:600}
+@media(max-width:700px){.pitch-player{width:72px}.pitch-player-portrait-row{width:72px}.pitch-player-name{width:72px;max-width:72px;font-size:8px}}
