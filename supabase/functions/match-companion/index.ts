@@ -12,6 +12,7 @@ interface PlayerRequest {
   name: string;
   position?: string;
   team?: string;
+  nationality?: string;
 }
 
 interface RatingResult {
@@ -235,7 +236,7 @@ async function getCachedRatings(
 async function enrichFotMobPlayerContext(player: PlayerRequest): Promise<PlayerRequest> {
   if (!player.fotmobId) return player;
 
-  const needsContext = !player.position || !player.team ||
+  const needsContext = !player.position || !player.team || !player.nationality ||
     isLikelyNationalTeamName(player.team);
   if (!needsContext) return player;
 
@@ -281,11 +282,16 @@ async function enrichFotMobPlayerContext(player: PlayerRequest): Promise<PlayerR
       primaryTeam?.role ??
       "",
     ).trim();
+    const nationalityValue = profile?.nationality ?? profile?.country ??
+      profile?.nationalities ?? profile?.citizenship ?? profile?.birthPlace?.country ??
+      profile?.birthCountry ?? profile?.countryName ?? null;
+    const profileNationality = getNationalityName(nationalityValue);
 
     return {
       ...player,
       team: profileClub || player.team,
       position: profilePosition || player.position,
+      nationality: profileNationality || player.nationality,
     };
   } catch (error) {
     console.warn("FotMob player profile context lookup failed:", {
@@ -513,6 +519,7 @@ async function findFCRadarPlayer(
       name: getCandidateNames(candidate)[0] || null,
       club: getCandidateClub(candidate) || null,
       position: candidate.position ?? candidate.positions ?? candidate.primaryPosition ?? null,
+      nationality: getCandidateNationality(candidate) || null,
       rating: candidate.overall_rating ?? candidate.overall ?? candidate.ovr ?? candidate.rating ?? null,
     })),
   });
@@ -547,6 +554,7 @@ function rankCandidates(
 ): { selected?: FCRadarPlayer; source?: string; ambiguous: boolean } {
   const requestedName = normalize(player.name);
   const requestedClub = normalizeClub(player.team || "");
+  const requestedNationality = normalizeNationality(player.nationality || "");
   const requestedPosition = normalizePosition(player.position || "");
   const aliases: Record<string, string[]> = {
     franciswestfield: ["frankiewestfield"],
@@ -556,7 +564,7 @@ function rankCandidates(
   const ranked = candidates.map(candidate => {
     const names = getCandidateNames(candidate).map(normalize);
     const exactName = names.some(name => acceptedNames.has(name));
-    const surname = normalize(player.name.trim().split(/\s+/).slice(-1)[0] || "");
+    const surname = normalize(player.name.trim().split(/\\s+/).slice(-1)[0] || "");
     const surnameOnly = !exactName && surname.length >= 4 && names.some(name =>
       name === surname || name.includes(surname)
     );
@@ -567,30 +575,31 @@ function rankCandidates(
       (requestedClub === candidateClub ||
        requestedClub.includes(candidateClub) ||
        candidateClub.includes(requestedClub)));
+    const exactClubMatch = Boolean(requestedClub && candidateClub && requestedClub === candidateClub);
+    const candidateNationality = normalizeNationality(getCandidateNationality(candidate));
+    const nationalityMatch = Boolean(requestedNationality && candidateNationality &&
+      requestedNationality === candidateNationality);
     const candidatePositionValue =
       candidate.position ?? candidate.positions ?? candidate.primaryPosition ?? "";
     const positionScore = getPositionMatchScore(requestedPosition, candidatePositionValue);
-    const hasCandidatePosition = positionTokens(candidatePositionValue).length > 0;
-    const positionConflict = Boolean(requestedPosition && hasCandidatePosition && positionScore === 0);
-    const exactClubMatch = Boolean(requestedClub && candidateClub && requestedClub === candidateClub);
 
-    // Surname-only matches still require both club and position confirmation.
-    if (surnameOnly && (!clubMatch || positionScore === 0)) return null;
-    // Exact name plus exact club is stronger identity evidence than a potentially
-    // stale or role-specific position label from FotMob. Keep position conflicts
-    // as a ranking penalty rather than rejecting an otherwise unique player.
-    if (positionConflict && !(exactName && clubMatch)) return null;
+    // Position is deliberately only a tiny tie-breaker. FotMob's listed role
+    // can be stale or more specific than the FC database's primary position.
+    // Surname-only matches need independent club or nationality evidence.
+    if (surnameOnly && !clubMatch && !nationalityMatch) return null;
 
     const score = (exactName ? 100 : 45) +
-      (exactClubMatch ? 60 : clubMatch ? 40 : 0) +
-      positionScore;
+      (exactClubMatch ? 55 : clubMatch ? 35 : 0) +
+      (nationalityMatch ? 45 : 0) +
+      Math.min(positionScore, 3);
     return {
       candidate,
       score,
-      source: surnameOnly ? "fcradar_surname_club_position"
-        : acceptedNames.has(names.find(name => acceptedNames.has(name)) || "")
-          ? "fcradar_exact_or_alias_name"
-          : "fcradar_name_club_position",
+      source: surnameOnly ? "fcradar_surname_club_or_nationality"
+        : nationalityMatch && clubMatch ? "fcradar_name_club_nationality"
+        : nationalityMatch ? "fcradar_name_nationality"
+        : clubMatch ? "fcradar_name_club"
+        : "fcradar_exact_or_alias_name",
     };
   }).filter((item): item is { candidate: FCRadarPlayer; score: number; source: string } => item !== null)
     .sort((a, b) => b.score - a.score);
@@ -600,8 +609,9 @@ function rankCandidates(
 
   const first = ranked[0];
   const second = ranked[1];
-  // Require a clear lead when multiple same-name candidates exist.
-  if (first.score > second.score && first.score - second.score >= 20) {
+  // Nationality and club should resolve same-name players; otherwise require
+  // a clear lead instead of guessing. Position cannot decide identity alone.
+  if (first.score > second.score && first.score - second.score >= 15) {
     return { selected: first.candidate, source: first.source, ambiguous: false };
   }
   return { ambiguous: true };
@@ -651,6 +661,35 @@ function getCandidateClub(candidate: FCRadarPlayer): string {
     return String(club.name ?? club.shortName ?? club.displayName ?? "");
   }
   return String(value ?? "");
+}
+
+function getNationalityName(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map(getNationalityName).filter(Boolean).join(" ");
+  }
+  if (value && typeof value === "object") {
+    const item = value as Record<string, unknown>;
+    return String(item.name ?? item.nationality ?? item.countryName ?? item.commonName ??
+      item.shortName ?? item.code ?? item.isoCode ?? "");
+  }
+  return String(value ?? "").trim();
+}
+
+function getCandidateNationality(candidate: FCRadarPlayer): string {
+  return getNationalityName(candidate.nationality ?? candidate.nationalities ??
+    candidate.country ?? candidate.countries ?? candidate.citizenship ??
+    candidate.nation ?? candidate.nationName ?? candidate.countryName);
+}
+
+function normalizeNationality(value: string): string {
+  const normalized = normalize(value);
+  const aliases: Record<string, string> = {
+    usa: "unitedstates", us: "unitedstates", unitedstatesofamerica: "unitedstates",
+    england: "england", southkorea: "southkorea", korea: "southkorea",
+    cote divoire: "ivorycoast", coteivoire: "ivorycoast",
+    turkiye: "turkey",
+  };
+  return aliases[normalized] || normalized;
 }
 
 function normalizeClub(value: string): string {
