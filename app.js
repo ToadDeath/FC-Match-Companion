@@ -256,7 +256,7 @@ function playerEventMarkup(player) {
 
 function playerLastName(player) {
   const fullName = String(player?.name || player?.localizedName || "Unknown player").trim();
-  const parts = fullName.split(/\\s+/).filter(Boolean);
+  const parts = fullName.split(/\s+/).filter(Boolean);
   return parts.length > 1 ? parts[parts.length - 1] : fullName;
 }
 
