@@ -171,7 +171,8 @@ function renderMatch(match, matchId) {
   const title = `${homeName} vs ${awayName}`;
   const homeTeam = { ...home, name: home.name || homeName };
   const awayTeam = { ...away, name: away.name || awayName };
-  const hasLineup = getPlayers(homeTeam).length || getPlayers(awayTeam).length;
+  const hasLineup = getPlayers(homeTeam).length || getSubstitutes(homeTeam).length ||
+    getPlayers(awayTeam).length || getSubstitutes(awayTeam).length;
 
   currentMatch = currentMatch?.matchId === matchId
     ? { ...currentMatch, match, matchId }
@@ -220,7 +221,7 @@ async function loadFcRatings() {
   const matchRef = currentMatch;
   const players = collectPlayers(matchRef.match);
   if (!players.length) {
-    setStatus("There are no starting players to look up.", "error");
+    setStatus("There are no lineup players to look up.", "error");
     return;
   }
 
