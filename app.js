@@ -190,8 +190,8 @@ function renderMatch(match, matchId) {
           ? "Looking up FC Database ratings from FCRadar..."
           : currentMatch.fcRatingsLoaded
             ? "FC Database ratings from FCRadar. A dash means no confident player match was found."
-            : "Select FC Database to load FC Database ratings from FCRadar.")
-      : "FotMob match ratings are displayed when available. Switch to FC Database to see FC Database ratings."}</p>
+            : "Select FC Database to view player OVRs from FCRadar.")
+      : "FotMob match ratings are displayed when available. Switch to FC Database to view player OVRs."}</p>
   `;
 
   matchContent.classList.remove("hidden");
