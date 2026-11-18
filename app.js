@@ -100,7 +100,7 @@ function collectPlayers(match) {
 
 function playerPhotoUrl(player) {
   const supplied = player?.imageUrl || player?.photoUrl || player?.image;
-  if (typeof supplied === "string" && /^https?:\\/\\//i.test(supplied)) return supplied;
+  if (typeof supplied === "string" && supplied.startsWith("https://") || typeof supplied === "string" && supplied.startsWith("http://")) return supplied;
   const id = player?.id ?? player?.playerId;
   return id ? "https://images.fotmob.com/image_resources/playerimages/" + encodeURIComponent(id) + ".png" : "";
 }
