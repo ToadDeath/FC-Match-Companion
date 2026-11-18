@@ -276,29 +276,21 @@ async function loadFcRatings() {
   const lookupMatchId = matchRef.matchId;
   const lookupPromise = (async () => {
     try {
-      const combinedRatings = { ...(currentMatch.fcRatings || {}) };
-      const batchSize = 2;
+      const { data, error } = await supabase.functions.invoke("match-companion", {
+        body: { action: "ratings", players }
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "FC Database ratings could not be loaded.");
+      if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
 
-      for (let offset = 0; offset < players.length; offset += batchSize) {
-        const batch = players.slice(offset, offset + batchSize);
-        const { data, error } = await supabase.functions.invoke("match-companion", {
-          body: { action: "ratings", players: batch }
-        });
-        if (error) throw error;
-        if (!data?.ok) throw new Error(data?.error || "FCRadar ratings could not be loaded.");
-        if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
-
-        Object.assign(combinedRatings, data.ratings || {});
-        const completed = Math.min(offset + batch.length, players.length);
-        currentMatch = {
-          ...currentMatch,
-          fcRatings: { ...combinedRatings },
-          fcRatingsProgress: { completed, total: players.length },
-        };
-        renderMatch(currentMatch.match, currentMatch.matchId);
-        const percent = Math.round(completed / players.length * 100);
-        setStatus(`Matching FC Database players: ${percent}% (${completed}/${players.length})`, "loading");
-      }
+      const combinedRatings = { ...(currentMatch.fcRatings || {}), ...(data.ratings || {}) };
+      currentMatch = {
+        ...currentMatch,
+        fcRatings: combinedRatings,
+        fcRatingsProgress: { completed: players.length, total: players.length },
+      };
+      renderMatch(currentMatch.match, currentMatch.matchId);
+      setStatus(`Matching FC Database players: 100% (${players.length}/${players.length})`, "loading");
 
       if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
       currentMatch = {
