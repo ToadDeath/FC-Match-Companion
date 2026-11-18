@@ -276,22 +276,58 @@ async function loadFcRatings() {
   const lookupMatchId = matchRef.matchId;
   const lookupPromise = (async () => {
     try {
-      // One Edge Function request handles the full lineup. The backend bulk-loads
-      // saved ratings, then sends only cache misses/expired ratings to FCRadar.
+      // Load valid cached ratings in one bulk request, then resolve only misses
+      // in small concurrent batches so the progress indicator reflects real work.
+      const { data: cacheData, error: cacheError } = await supabase.functions.invoke("match-companion", {
+        body: { action: "ratings-cache", players }
+      });
+      if (cacheError) throw cacheError;
+      if (!cacheData?.ok) throw new Error(cacheData?.error || "Saved FC Database ratings could not be loaded.");
+      if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
+
+      const combinedRatings = { ...(currentMatch.fcRatings || {}), ...(cacheData.ratings || {}) };
+      const missingKeys = new Set(cacheData.missingKeys || []);
+      const missingPlayers = players.filter(player => missingKeys.has(player.key));
+      const cachedCount = players.length - missingPlayers.length;
+      const batchSize = 8;
+      const totalBatches = Math.ceil(missingPlayers.length / batchSize);
+
       currentMatch = {
         ...currentMatch,
-        fcRatingsStage: "Checking saved ratings and resolving any players not yet cached.",
+        fcRatings: { ...combinedRatings },
+        fcRatingsProgress: { completed: cachedCount, total: players.length },
+        fcRatingsStage: missingPlayers.length
+          ? `${cachedCount} saved ratings loaded. Resolving ${missingPlayers.length} uncached players.`
+          : "All ratings loaded from the saved cache.",
       };
       renderMatch(currentMatch.match, currentMatch.matchId);
 
-      const { data, error } = await supabase.functions.invoke("match-companion", {
-        body: { action: "ratings", players }
-      });
-      if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error || "FC Database ratings could not be loaded.");
-      if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
+      for (let offset = 0; offset < missingPlayers.length; offset += batchSize) {
+        const batch = missingPlayers.slice(offset, offset + batchSize);
+        const batchNumber = Math.floor(offset / batchSize) + 1;
+        currentMatch = {
+          ...currentMatch,
+          fcRatingsStage: `Resolving uncached players - batch ${batchNumber} of ${totalBatches}.`,
+        };
+        renderMatch(currentMatch.match, currentMatch.matchId);
 
-      const combinedRatings = { ...(currentMatch.fcRatings || {}), ...(data.ratings || {}) };
+        const { data, error } = await supabase.functions.invoke("match-companion", {
+          body: { action: "ratings-resolve", players: batch }
+        });
+        if (error) throw error;
+        if (!data?.ok) throw new Error(data?.error || "Uncached FC Database ratings could not be resolved.");
+        if (!currentMatch || currentMatch.matchId !== matchRef.matchId) return;
+
+        Object.assign(combinedRatings, data.ratings || {});
+        const completed = cachedCount + Math.min(offset + batch.length, missingPlayers.length);
+        currentMatch = {
+          ...currentMatch,
+          fcRatings: { ...combinedRatings },
+          fcRatingsProgress: { completed, total: players.length },
+          fcRatingsStage: `${completed} of ${players.length} players checked.`,
+        };
+        renderMatch(currentMatch.match, currentMatch.matchId);
+      }
 
       currentMatch = {
         ...currentMatch,
