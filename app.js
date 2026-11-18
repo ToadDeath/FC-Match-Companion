@@ -145,6 +145,7 @@ function collectPlayers(match) {
     fotmobId: player?.id ?? player?.playerId ?? null,
     name: player?.name || player?.localizedName || "",
     position: player?.positionName || player?.position || player?.usualPosition || "",
+    nationality: player?.nationality || player?.countryName || player?.country || player?.citizenship || "",
     team: teamName,
   }));
   return [
