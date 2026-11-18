@@ -202,3 +202,9 @@
 .pitch-player-name{display:block;box-sizing:border-box;width:88px;max-width:88px;margin:0 auto;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.15}
 .pitch-player-name b{display:inline;color:#aeb4b9;font-weight:600}
 @media(max-width:700px){.pitch-player{width:72px}.pitch-player-portrait-row{width:72px}.pitch-player-name{width:72px;max-width:72px;font-size:8px}}
+
+
+/* Keep the rating selector available while scrolling. */
+.rating-switch{position:fixed;right:max(18px,calc((100vw - 1120px)/2 + 18px));bottom:18px;z-index:50;gap:4px;padding:5px;background:#0a1118f2;border:1px solid #40515d;border-radius:9px;box-shadow:0 8px 28px #0008;backdrop-filter:blur(12px)}
+.rating-switch .switch-label{display:none}
+@media(max-width:650px){.rating-switch{right:12px;bottom:12px;padding:4px}.rating-switch .switch-option{padding:9px 11px;font-size:10px}}
