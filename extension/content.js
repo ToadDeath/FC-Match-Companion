@@ -228,7 +228,7 @@
     // The generated CSS suffix changes, so match the stable component name.
     let current = playerAnchor;
     for (let level = 0; current && level < 10; level++, current = current.parentElement) {
-      const exact = current.querySelector('div[class*="PlayerRatingCSS"] > span');
+      const exact = current.querySelector('div[class*="PlayerRatingCSS"]');
       if (exact && /^\d{1,2}(?:\.\d)?$/.test((exact.textContent || "").trim())) {
         return exact;
       }
