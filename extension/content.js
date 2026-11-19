@@ -289,8 +289,14 @@
   }
 
   function createInjectedPill(anchor, playerId, result) {
-    let pill = injectedPills.get(playerId);
-    if (!pill || !pill.isConnected) {
+    // Upcoming fixtures and unavailable players often have no FotMob rating
+    // component. Place our replacement in the portrait itself so its position
+    // matches the native rating badge used on completed-match lineups.
+    const portrait = anchor.querySelector('[class*="PlayerHeadContainer"]');
+    if (!portrait) return null;
+
+    let pill = portrait.querySelector(".fcdb-injected-rating");
+    if (!pill) {
       pill = result.fcradarUrl ? document.createElement("a") : document.createElement("span");
       pill.className = "fcdb-rating-pill fcdb-injected-rating";
       pill.dataset.fcdbPlayerId = playerId;
@@ -301,8 +307,8 @@
         pill.title = "Open this player on FCRadar";
         pill.setAttribute("aria-label", "FC Database OVR. Open FCRadar player profile");
       }
-      anchor.insertAdjacentElement("afterend", pill);
-      injectedPills.set(playerId, pill);
+      portrait.appendChild(pill);
+      injectedPills.set(pill, pill);
     }
     pill.textContent = result.rating == null ? "—" : String(result.rating);
     pill.className = "fcdb-rating-pill fcdb-injected-rating " + toneForRating(result.rating);
@@ -342,7 +348,8 @@
           });
         }
       } else {
-        createInjectedPill(anchor, playerId, result);
+        const injected = createInjectedPill(anchor, playerId, result);
+        if (!injected) continue;
       }
       updated++;
     }
