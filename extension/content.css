@@ -1,59 +1,18 @@
 #fc-match-companion-toggle {
-  position: fixed !important;
-  top: 14px !important;
-  right: 16px !important;
-  left: auto !important;
-  bottom: auto !important;
-  width: fit-content;
-  margin: 0 !important;
-  z-index: 2147483647 !important;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  padding: 5px;
-  border: 1px solid rgba(133, 153, 170, .55);
-  border-radius: 10px;
-  background: rgba(12, 19, 27, .97);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, .42);
-  color: #f4f7fa;
-  font: 600 12px/1.2 system-ui, sans-serif;
-  backdrop-filter: blur(12px);
-}
-.fcdb-extension-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 9px;
-  color: #dce7ed;
-  font: 700 9px/1 system-ui, sans-serif;
-  letter-spacing: .07em;
-  white-space: nowrap;
-}
-.fcdb-extension-indicator i {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #43d18a;
-  box-shadow: 0 0 8px rgba(67, 209, 138, .8);
-}
-#fc-match-companion-toggle button {
   appearance: none;
-  border: 0;
-  border-radius: 7px;
-  padding: 9px 12px;
-  background: transparent;
-  color: #c1cbd4;
-  font: inherit;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   white-space: nowrap;
+  color: inherit;
 }
-#fc-match-companion-toggle button[aria-pressed="true"] {
-  color: #fff;
-  background: #344655;
+#fc-match-companion-toggle[aria-pressed="true"] {
+  outline: 2px solid var(--LineupFilterButton-ActiveBorder, currentColor);
+  outline-offset: -2px;
 }
-#fc-match-companion-toggle button:focus-visible {
-  outline: 2px solid #83b7ef;
+#fc-match-companion-toggle:focus-visible {
+  outline: 2px solid currentColor;
   outline-offset: 2px;
 }
 #fc-match-companion-status {
@@ -108,52 +67,16 @@
   #fc-match-companion-toggle button { padding: 9px 9px; font-size: 10px; }
   #fc-match-companion-status { top: 58px !important; right: 10px !important; }
 }
-.fcdb-injected-rating { margin-left: 7px !important; vertical-align: middle !important; text-decoration: none !important; cursor: pointer; }
-.fcdb-injected-rating:hover { filter: brightness(1.12); }
-.fcdb-injected-rating[hidden] { display: none !important; }
 
-
-/* Fallback OVRs sit in the portrait at the same corner as FotMob's native badge. */
 .fcdb-injected-rating {
   position: absolute !important;
   top: 0 !important;
   right: 0 !important;
   z-index: 5 !important;
   margin: 0 !important;
-  min-width: 25px !important;
-  min-height: 20px !important;
-  padding: 2px 5px 1px !important;
-  font-size: 11px !important;
-  line-height: 1.15 !important;
+  text-decoration: none !important;
+  cursor: pointer;
 }
-
-
-/* The portrait is the positioning context for OVRs when FotMob has no native rating. */
-[class*="PlayerHeadContainer"] {
-  position: relative !important;
-}
-.fcdb-injected-rating {
-  width: 28px !important;
-  min-width: 28px !important;
-  max-width: 28px !important;
-  height: 22px !important;
-  min-height: 22px !important;
-  max-height: 22px !important;
-  box-sizing: border-box !important;
-  flex: 0 0 28px !important;
-  border-radius: 999px !important;
-  padding: 2px 0 1px !important;
-  overflow: hidden !important;
-  font-size: 11px !important;
-}
-.fcdb-rating-pill {
-  width: 28px !important;
-  min-width: 28px !important;
-  max-width: 28px !important;
-  height: 22px !important;
-  min-height: 22px !important;
-  max-height: 22px !important;
-  flex: 0 0 28px !important;
-  padding: 2px 0 1px !important;
-  overflow: hidden !important;
-}
+.fcdb-injected-rating:hover { filter: brightness(1.12); }
+.fcdb-injected-rating[hidden] { display: none !important; }
+[class*="PlayerHeadContainer"] { position: relative !important; }
