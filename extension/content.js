@@ -109,7 +109,7 @@
         button.getAttribute("aria-selected") === "true" ||
         button.getAttribute("aria-checked") === "true" ||
         button.getAttribute("data-state") === "active" ||
-        /(^|\\s)(active|selected)(\\s|$)/i.test(classes);
+        /(^|\s)(active|selected)(\s|$)/i.test(classes);
     });
     if (!activeButtons.length) return;
     suppressNativeFilterModeSwitch = true;
