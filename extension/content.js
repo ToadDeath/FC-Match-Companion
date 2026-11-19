@@ -63,6 +63,17 @@
       const referenceButton = filterRow.querySelector("button");
       if (referenceButton) toggle.className = referenceButton.className + " fcdb-lineup-filter-button";
       filterRow.appendChild(toggle);
+      if (!filterRow.dataset.fcdbModeCoordinator) {
+        // FC Database is a mode, not a FotMob stat filter. Selecting any
+        // native lineup filter should automatically return to FotMob mode.
+        filterRow.addEventListener("click", event => {
+          const clickedButton = event.target.closest("button");
+          if (clickedButton && clickedButton !== toggle && activeMode === "fc") {
+            setMode("fotmob");
+          }
+        }, true);
+        filterRow.dataset.fcdbModeCoordinator = "true";
+      }
       return;
     }
     // Do not float the control over the page if the lineup filters are not
@@ -490,7 +501,9 @@
       const id = getFotMobPlayerId(anchor);
       if (!id || ratingByFotMobId.has(id) || visibleLookupPending.has(id)) continue;
       const card = findPlayerCardRoot(anchor);
-      const nameNode = card.querySelector('[title]') || card.querySelector('[class*="LineupPlayerText"]');
+      const nameNode = card.querySelector('[title]') ||
+        card.querySelector('[class*="LineupPlayerText"]') ||
+        card.querySelector('[class*="PlayerName"]');
       const name = nameNode?.getAttribute("title") || nameNode?.textContent?.trim() || "";
       if (!name) continue;
       visibleLookupPending.add(id);
@@ -498,7 +511,8 @@
         key: "visible:" + id,
         fotmobId: id,
         name,
-        position: "",
+        position: card.querySelector('[class*="NotAvailableInfoContainer"]')?.textContent?.trim() ||
+          card.querySelector('[class*="RoleTextCSS"]')?.textContent?.trim() || "",
         nationality: "",
         team: ""
       });
