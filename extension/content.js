@@ -265,7 +265,8 @@
       className: node.getAttribute("class"),
       style: node.getAttribute("style"),
       title: node.getAttribute("title"),
-      ariaLabel: node.getAttribute("aria-label")
+      ariaLabel: node.getAttribute("aria-label"),
+      hidden: node.hidden
     });
   }
 
@@ -347,6 +348,7 @@
       else node.setAttribute("title", original.title);
       if (original.ariaLabel == null) node.removeAttribute("aria-label");
       else node.setAttribute("aria-label", original.ariaLabel);
+      node.hidden = original.hidden;
     }
     savedPills.clear();
     for (const pill of injectedPills.values()) { if (pill.isConnected) pill.remove(); }
