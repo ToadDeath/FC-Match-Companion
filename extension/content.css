@@ -84,19 +84,19 @@
   box-sizing: border-box !important;
   border-radius: 999px !important;
   padding: 3px 7px 1px !important;
-  color: #fff !important;
+  color: #000 !important;
   font-weight: 700 !important;
   font-variant-numeric: tabular-nums !important;
   line-height: 1.2 !important;
   text-align: center !important;
   opacity: 1 !important;
 }
-.fcdb-rating-pill.fcdb-ovr-elite { background: #087b43 !important; }
-.fcdb-rating-pill.fcdb-ovr-high { background: #48a66b !important; color: #fff !important; }
-.fcdb-rating-pill.fcdb-ovr-mid { background: #e0c64b !important; color: #fff !important; }
-.fcdb-rating-pill.fcdb-ovr-low { background: #e18a3b !important; color: #fff !important; }
-.fcdb-rating-pill.fcdb-ovr-poor { background: #bd4545 !important; }
-.fcdb-rating-pill.fcdb-ovr-none { background: #65717c !important; color: #fff !important; }
+.fcdb-rating-pill.fcdb-ovr-elite { background: #087b43 !important; color: #000 !important; }
+.fcdb-rating-pill.fcdb-ovr-high { background: #48a66b !important; color: #000 !important; }
+.fcdb-rating-pill.fcdb-ovr-mid { background: #e0c64b !important; color: #000 !important; }
+.fcdb-rating-pill.fcdb-ovr-low { background: #e18a3b !important; color: #000 !important; }
+.fcdb-rating-pill.fcdb-ovr-poor { background: #bd4545 !important; color: #000 !important; }
+.fcdb-rating-pill.fcdb-ovr-none { background: #65717c !important; color: #000 !important; }
 @media (max-width: 600px) {
   #fc-match-companion-toggle { top: 10px !important; right: 10px !important; gap: 2px; }
   .fcdb-extension-indicator { padding: 0 5px; font-size: 8px; }
@@ -106,3 +106,18 @@
 .fcdb-injected-rating { margin-left: 7px !important; vertical-align: middle !important; text-decoration: none !important; cursor: pointer; }
 .fcdb-injected-rating:hover { filter: brightness(1.12); }
 .fcdb-injected-rating[hidden] { display: none !important; }
+
+
+/* Fallback OVRs sit in the portrait at the same corner as FotMob's native badge. */
+.fcdb-injected-rating {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  z-index: 5 !important;
+  margin: 0 !important;
+  min-width: 25px !important;
+  min-height: 20px !important;
+  padding: 2px 5px 1px !important;
+  font-size: 11px !important;
+  line-height: 1.15 !important;
+}
