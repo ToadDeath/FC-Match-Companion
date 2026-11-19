@@ -223,27 +223,31 @@
   }
 
   function findRatingPill(playerAnchor) {
+    // FotMob lineup rows render the native rating in:
+    // .TopRight > .PlayerRatingCSS > span
+    // The generated CSS suffix changes, so match the stable component name.
     let current = playerAnchor;
+    for (let level = 0; current && level < 10; level++, current = current.parentElement) {
+      const exact = current.querySelector('div[class*="PlayerRatingCSS"] > span');
+      if (exact && /^\d{1,2}(?:\.\d)?$/.test((exact.textContent || "").trim())) {
+        return exact;
+      }
+    }
+
+    // Fallback for other FotMob views with a different rating component.
+    current = playerAnchor;
     for (let level = 0; current && level < 8; level++, current = current.parentElement) {
       const candidates = [...current.querySelectorAll("span, div, strong, b")]
         .filter(node => {
           if (node.closest("#fc-match-companion-toggle, #fc-match-companion-status")) return false;
           const text = (node.textContent || "").trim();
-          if (!/^\d{1,2}(?:\.\d)?$/.test(text)) return false;
-          if (node.children.length > 0) return false;
+          if (!/^\d{1,2}(?:\.\d)?$/.test(text) || node.children.length > 0) return false;
           const classes = String(node.className || "").toLowerCase();
           const ratingClass = /rating|score|performance|pill/.test(classes);
           const decimalRating = /^\d{1,2}\.\d$/.test(text) && Number(text) >= 1 && Number(text) <= 10;
           return ratingClass || decimalRating;
         });
-      if (candidates.length) {
-        candidates.sort((a, b) => {
-          const aClass = /rating|score|performance|pill/i.test(String(a.className || "")) ? 0 : 1;
-          const bClass = /rating|score|performance|pill/i.test(String(b.className || "")) ? 0 : 1;
-          return aClass - bClass;
-        });
-        return candidates[0];
-      }
+      if (candidates.length) return candidates[0];
     }
     return null;
   }
@@ -337,7 +341,7 @@
       lastApplySignature = signature;
       if (!updated) setStatus("FC Database ratings are loaded. Waiting for FotMob's lineup players to appear...");
       else setStatus("FC Database: " + [...ratingByFotMobId.values()].filter(result => result.rating != null).length +
-        "/" + ratingByFotMobId.size + " players matched.");
+        "/" + ratingByFotMobId.size + " players matched · " + updated + " lineup pills updated.");
     }
   }
 
