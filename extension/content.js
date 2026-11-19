@@ -315,14 +315,13 @@
     let wrapper = portrait.querySelector(".fcdb-injected-rating-wrapper");
     let pill = wrapper?.querySelector(".fcdb-injected-rating");
     if (!wrapper) {
+      // Match the exact player-rating component from a completed FotMob match,
+      // rather than borrowing the differently sized team-average badge.
       wrapper = document.createElement("div");
       wrapper.className = "css-upbi04-TopRight e16r8a9j11 fcdb-injected-rating-wrapper";
       wrapper.setAttribute("offset", "27px");
       pill = document.createElement("div");
-      const template = document.querySelector('[title="Team rating"] div[class*="PlayerRatingCSS"]') ||
-        document.querySelector('div[class*="PlayerRatingCSS"]');
-      pill.className = (template?.className || "css-1gybtde-PlayerRatingCSS e1m6ml490") +
-        " fcdb-rating-pill fcdb-injected-rating";
+      pill.className = "css-1gybtde-PlayerRatingCSS e1m6ml490 fcdb-rating-pill fcdb-injected-rating";
       pill.dataset.fcdbPlayerId = playerId;
       pill.title = result.fcradarUrl
         ? "FC Database OVR - click to open this player on FCRadar"
@@ -355,10 +354,16 @@
   function applyDatabaseRatings() {
     if (activeMode !== "fc" || !ratingByFotMobId.size) return;
     const anchors = [...document.querySelectorAll('a[href*="/players/"], a[href*="player="]')]
-      .filter(anchor =>
-        matchesOrContains(anchor, "LineupPlayerCSS") &&
-        matchesOrContains(anchor, "PlayerHeadContainer")
-      );
+      .filter(anchor => {
+        // Bench cards have two layouts. The horizontal card has no portrait
+        // container; the vertical card wraps a LineupPlayerCSS card inside
+        // VerticalBenchPlayerCSS. Resolve the actual card before filtering.
+        const root = findPlayerCardRoot(anchor);
+        return Boolean(
+          root.querySelector('[class*="PlayerHeadContainer"]') ||
+          root.matches('[class*="PlayerHeadContainer"]')
+        );
+      });
     let updated = 0;
 
     for (const anchor of anchors) {
@@ -421,7 +426,7 @@
       const complete = ids.length === 11 && values.length === 11 &&
         values.every(value => Number.isFinite(value));
       const average = complete
-        ? (values.reduce((sum, value) => sum + value, 0) / 11).toFixed(1)
+        ? String(Math.round(values.reduce((sum, value) => sum + value, 0) / 11))
         : "—";
       rememberOriginal(badge);
       badge.replaceChildren(Object.assign(document.createElement("span"), { textContent: average }));
