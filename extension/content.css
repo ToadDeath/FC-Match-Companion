@@ -34,24 +34,9 @@
 }
 #fc-match-companion-status[hidden] { display: none !important; }
 .fcdb-rating-pill {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 28px !important;
-  min-width: 28px !important;
-  max-width: 28px !important;
-  height: 22px !important;
-  min-height: 22px !important;
-  max-height: 22px !important;
-  flex: 0 0 28px !important;
-  overflow: hidden !important;
-  box-sizing: border-box !important;
-  border-radius: 999px !important;
-  padding: 3px 7px 1px !important;
   color: #000 !important;
   font-weight: 700 !important;
   font-variant-numeric: tabular-nums !important;
-  line-height: 1.2 !important;
   text-align: center !important;
   opacity: 1 !important;
 }
@@ -61,20 +46,13 @@
 .fcdb-rating-pill.fcdb-ovr-low { background: #e18a3b !important; color: #000 !important; }
 .fcdb-rating-pill.fcdb-ovr-poor { background: #bd4545 !important; color: #000 !important; }
 .fcdb-rating-pill.fcdb-ovr-none { background: #65717c !important; color: #000 !important; }
-@media (max-width: 600px) {
-  #fc-match-companion-toggle { top: 10px !important; right: 10px !important; gap: 2px; }
-  .fcdb-extension-indicator { padding: 0 5px; font-size: 8px; }
-  #fc-match-companion-toggle button { padding: 9px 9px; font-size: 10px; }
-  #fc-match-companion-status { top: 58px !important; right: 10px !important; }
-}
-
-.fcdb-injected-rating {
+.fcdb-injected-rating-wrapper {
   position: absolute !important;
   top: 0 !important;
   right: 0 !important;
   z-index: 5 !important;
-  margin: 0 !important;
-  text-decoration: none !important;
+}
+.fcdb-injected-rating {
   cursor: pointer;
 }
 .fcdb-injected-rating:hover { filter: brightness(1.12); }
