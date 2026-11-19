@@ -5,6 +5,7 @@
   const supabaseUrl = String(config.supabaseUrl || "").replace(/\/$/, "");
   const publishableKey = String(config.supabasePublishableKey || "");
   const savedPills = new Map();
+  const injectedPills = new Map();
   const ratingByFotMobId = new Map();
   let activeMode = "fotmob";
   let activeMatchId = "";
@@ -37,7 +38,7 @@
         if (!button) return;
         setMode(button.dataset.mode);
       });
-      document.documentElement.appendChild(toggle);
+      placeToggle(toggle);
     }
 
     let status = document.getElementById("fc-match-companion-status");
@@ -47,9 +48,26 @@
       status.hidden = true;
       status.setAttribute("role", "status");
       status.setAttribute("aria-live", "polite");
-      document.documentElement.appendChild(status);
+      placeStatus(status);
     }
     return { toggle, status };
+  }
+
+  function findLineupHeading() {
+    const headings = [...document.querySelectorAll("h1,h2,h3,h4,[role='heading']")];
+    return headings.find(node => /^(line.?ups?|starting\s*xi|lineup)$/i.test((node.textContent || "").trim()));
+  }
+
+  function placeToggle(toggle) {
+    const heading = findLineupHeading();
+    if (heading?.parentElement) heading.parentElement.insertAdjacentElement("afterend", toggle);
+    else document.documentElement.appendChild(toggle);
+  }
+
+  function placeStatus(status) {
+    const toggle = document.getElementById("fc-match-companion-toggle");
+    if (toggle?.parentElement && toggle.parentElement !== document.documentElement) toggle.insertAdjacentElement("afterend", status);
+    else document.documentElement.appendChild(status);
   }
 
   function setStatus(message, visible = true) {
@@ -192,7 +210,8 @@
         const result = ratingResponse.ratings?.[player.key];
         ratingByFotMobId.set(String(player.fotmobId), {
           rating: result?.rating == null ? null : Number(result.rating),
-          status: result?.status || "not_found"
+          status: result?.status || "not_found",
+          fcradarUrl: result?.fcradarUrl || ""
         });
       }
 
@@ -255,6 +274,28 @@
     return "fcdb-ovr-none";
   }
 
+  function createInjectedPill(anchor, playerId, result) {
+    let pill = injectedPills.get(playerId);
+    if (!pill || !pill.isConnected) {
+      pill = result.fcradarUrl ? document.createElement("a") : document.createElement("span");
+      pill.className = "fcdb-rating-pill fcdb-injected-rating";
+      pill.dataset.fcdbPlayerId = playerId;
+      if (result.fcradarUrl) {
+        pill.href = result.fcradarUrl;
+        pill.target = "_blank";
+        pill.rel = "noopener noreferrer";
+        pill.title = "Open this player on FCRadar";
+        pill.setAttribute("aria-label", "FC Database OVR. Open FCRadar player profile");
+      }
+      anchor.insertAdjacentElement("afterend", pill);
+      injectedPills.set(playerId, pill);
+    }
+    pill.textContent = result.rating == null ? "—" : String(result.rating);
+    pill.className = "fcdb-rating-pill fcdb-injected-rating " + toneForRating(result.rating);
+    pill.hidden = false;
+    return pill;
+  }
+
   function applyDatabaseRatings() {
     if (activeMode !== "fc" || !ratingByFotMobId.size) return;
     const anchors = [...document.querySelectorAll('a[href*="/players/"]')];
@@ -269,22 +310,29 @@
       seenIds.add(playerId);
       const result = ratingByFotMobId.get(playerId);
       if (!result) continue;
-      const pill = findRatingPill(anchor);
-      if (!pill) continue;
-      rememberOriginal(pill);
-      const value = result.rating == null ? "—" : String(result.rating);
-      const nextClass = (savedPills.get(pill).className || "") + " fcdb-rating-pill " + toneForRating(result.rating);
-      if (pill.textContent !== value) pill.textContent = value;
-      if (pill.className !== nextClass) pill.className = nextClass;
-      pill.title = result.rating == null ? "No FC Database OVR available" : "FC Database OVR";
-      pill.setAttribute("aria-label", pill.title);
+
+      const nativePill = findRatingPill(anchor);
+      if (nativePill) {
+        rememberOriginal(nativePill);
+        nativePill.textContent = result.rating == null ? "—" : String(result.rating);
+        nativePill.className = (savedPills.get(nativePill).className || "") +
+          " fcdb-rating-pill " + toneForRating(result.rating);
+        nativePill.title = result.rating == null ? "No FC Database OVR available" : "FC Database OVR";
+        nativePill.setAttribute("aria-label", nativePill.title);
+        const injected = injectedPills.get(playerId);
+        if (injected) injected.hidden = true;
+      } else {
+        createInjectedPill(anchor, playerId, result);
+      }
       updated++;
     }
 
     const signature = activeMatchId + ":" + updated + ":" + anchors.length;
     if (signature !== lastApplySignature) {
       lastApplySignature = signature;
-      if (!updated) setStatus("FC Database loaded, but FotMob's rating elements were not detected on this view. Try opening the lineups or player ratings section.");
+      if (!updated) setStatus("FC Database ratings are loaded. Waiting for FotMob's lineup players to appear...");
+      else setStatus("FC Database: " + [...ratingByFotMobId.values()].filter(result => result.rating != null).length +
+        "/" + ratingByFotMobId.size + " players matched.");
     }
   }
 
@@ -302,6 +350,8 @@
       else node.setAttribute("aria-label", original.ariaLabel);
     }
     savedPills.clear();
+    for (const pill of injectedPills.values()) { if (pill.isConnected) pill.remove(); }
+    injectedPills.clear();
     lastApplySignature = "";
   }
 
@@ -332,7 +382,8 @@
   }
 
   function start() {
-    getOrCreateUi();
+    const { toggle } = getOrCreateUi();
+    placeToggle(toggle);
     updateToggle();
     const matchId = getMatchId();
     if (matchId) {
