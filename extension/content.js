@@ -427,7 +427,7 @@
         nativePill.replaceChildren(Object.assign(document.createElement("span"), {
           textContent: result.rating == null ? "—" : String(result.rating)
         }));
-        nativePill.classList.add("fcdb-rating-pill");
+        nativePill.classList.add("fcdb-rating-pill", "fcdb-bench-rating");
         nativePill.classList.remove(...TONE_CLASSES);
         nativePill.classList.add(toneForRating(result.rating));
         nativePill.title = result.fcradarUrl
@@ -572,6 +572,17 @@
     savedPills.clear();
     for (const pill of injectedPills.values()) { if (pill.isConnected) pill.remove(); }
     injectedPills.clear();
+
+    // Defensive cleanup: FotMob can replace or clone lineup nodes while the
+    // extension is active. Remove any FCDB-only styling left on surviving
+    // rating elements, even if that particular node was not in savedPills.
+    document.querySelectorAll(".fcdb-rating-pill, .fcdb-injected-rating-wrapper").forEach(node => {
+      node.classList.remove("fcdb-rating-pill", "fcdb-bench-rating", ...TONE_CLASSES);
+      node.removeAttribute("data-fcdb-player-id");
+      node.removeAttribute("data-fcdb-link-bound");
+      node.removeAttribute("data-fcradar-url");
+      if (node.classList.contains("fcdb-injected-rating-wrapper")) node.remove();
+    });
     lastApplySignature = "";
   }
 
