@@ -13,7 +13,8 @@
   let observerTimer = 0;
   let lastApplySignature = "";
 
-  const PLAYER_LINK = /\/players\/(\d+)(?=[/?#]|$)/;\n  const TONE_CLASSES = ["fcdb-ovr-elite", "fcdb-ovr-high", "fcdb-ovr-mid", "fcdb-ovr-low", "fcdb-ovr-poor", "fcdb-ovr-none"];
+  const PLAYER_LINK = /\/players\/(\d+)(?=[/?#]|$)/;
+  const TONE_CLASSES = ["fcdb-ovr-elite", "fcdb-ovr-high", "fcdb-ovr-mid", "fcdb-ovr-low", "fcdb-ovr-poor", "fcdb-ovr-none"];
   const MATCH_ID = /(?:^#|[#:])(?:[^0-9]*)(\d{5,})/;
 
   function getMatchId() {
@@ -134,17 +135,24 @@
   function teamPlayers(team) {
     const starters = flattenPlayers(team.starters || team.players || []);
     const explicitSubs = flattenPlayers(team.subs || team.substitutes || []);
-    const subs = explicitSubs.length ? explicitSubs : flattenPlayers(team.bench || []).filter(player =>
-      player.timeSubbedOn != null || player.subbedOn != null || player.substitutionMinute != null
-    );
     let bench = team.bench || team.benchPlayers || [];
     if (!Array.isArray(bench) && bench && typeof bench === "object") {
       bench = bench.players || bench.bench || bench.substitutes || [];
     }
-    const unusedBench = flattenPlayers(bench).filter(player =>
-      player.timeSubbedOn == null && player.subbedOn == null && player.substitutionMinute == null
-    );
-    return [...starters, ...subs, ...unusedBench];
+
+    // Completed-match FotMob data keeps substitutes in the bench collection
+    // and marks players who entered with timeSubbedOn/subbedOn. Include the
+    // entire bench, then deduplicate against the explicit substitute list.
+    const allPlayers = [...starters, ...explicitSubs, ...flattenPlayers(bench)];
+    const seen = new Set();
+    return allPlayers.filter(player => {
+      const id = player.id ?? player.playerId;
+      const name = player.name || player.localizedName || "";
+      const key = id != null ? "id:" + String(id) : "name:" + name.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   function collectRatingRequests(match) {
@@ -213,8 +221,8 @@
 
       const matched = [...ratingByFotMobId.values()].filter(result => result.rating != null).length;
       if (activeMode === "fc") {
+        // applyDatabaseRatings reports match coverage and visible lineup updates.
         applyDatabaseRatings();
-        setStatus("FC Database: " + matched + "/" + players.length + " players matched.");
       }
     } catch (error) {
       console.error("[FC Match Companion]", error);
@@ -319,7 +327,8 @@
         // that exact element instead of adding a second pill beside the name.
         rememberOriginal(nativePill);
         nativePill.textContent = result.rating == null ? "—" : String(result.rating);
-        nativePill.classList.add("fcdb-rating-pill");\n        nativePill.classList.remove(...TONE_CLASSES);\n        nativePill.classList.add(toneForRating(result.rating));
+        nativePill.classList.add("fcdb-rating-pill");
+        nativePill.classList.remove(...TONE_CLASSES);\n        nativePill.classList.add(toneForRating(result.rating));
         nativePill.title = result.fcradarUrl
           ? "FC Database OVR - click to open this player on FCRadar"
           : "FC Database OVR";
