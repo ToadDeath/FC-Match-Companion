@@ -8,8 +8,7 @@
   color: inherit;
 }
 #fc-match-companion-toggle[aria-pressed="true"] {
-  outline: 2px solid var(--LineupFilterButton-ActiveBorder, currentColor);
-  outline-offset: -2px;
+  filter: invert(1);
 }
 #fc-match-companion-toggle:focus-visible {
   outline: 2px solid currentColor;
@@ -47,9 +46,6 @@
 .fcdb-rating-pill.fcdb-ovr-poor { background: #bd4545 !important; color: #000 !important; }
 .fcdb-rating-pill.fcdb-ovr-none { background: #65717c !important; color: #000 !important; }
 .fcdb-injected-rating-wrapper {
-  position: absolute !important;
-  top: 0 !important;
-  right: 0 !important;
   z-index: 5 !important;
 }
 .fcdb-injected-rating {
