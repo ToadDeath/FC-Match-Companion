@@ -243,31 +243,17 @@
   }
 
   function findRatingPill(playerAnchor) {
-    // In FotMob match lineups the rating belongs to the player anchor itself.
-    // Keep the search inside that anchor so a nearby player's rating can never
-    // be mistaken for this player's rating.
+    // Only the actual lineup-card rating is eligible. Match/event feed cards
+    // also link to players, but must never receive an OVR badge.
     const exact = playerAnchor.querySelector('div[class*="PlayerRatingCSS"]');
-    if (exact && /^\d{1,2}(?:\.\d)?$/.test((exact.textContent || "").trim())) {
-      return exact;
-    }
-
-    // Limited fallback, also scoped to this player's anchor only.
-    const candidates = [...playerAnchor.querySelectorAll("span, div, strong, b")]
-      .filter(node => {
-        if (node.closest("#fc-match-companion-toggle, #fc-match-companion-status")) return false;
-        const text = (node.textContent || "").trim();
-        if (!/^\d{1,2}(?:\.\d)?$/.test(text) || node.children.length > 0) return false;
-        const classes = String(node.className || "").toLowerCase();
-        const ratingClass = /rating|score|performance|pill/.test(classes);
-        const decimalRating = /^\d{1,2}\.\d$/.test(text) && Number(text) >= 1 && Number(text) <= 10;
-        return ratingClass || decimalRating;
-      });
-    return candidates[0] || null;
+    if (exact) return exact;
+    return null;
   }
 
   function rememberOriginal(node) {
     if (savedPills.has(node)) return;
     savedPills.set(node, {
+      html: node.innerHTML,
       text: node.textContent,
       className: node.getAttribute("class"),
       style: node.getAttribute("style"),
@@ -318,7 +304,11 @@
 
   function applyDatabaseRatings() {
     if (activeMode !== "fc" || !ratingByFotMobId.size) return;
-    const anchors = [...document.querySelectorAll('a[href*="/players/"], a[href*="player="]')];
+    const anchors = [...document.querySelectorAll('a[href*="/players/"], a[href*="player="]')]
+      .filter(anchor =>
+        anchor.querySelector('[class*="LineupPlayerCSS"]') &&
+        anchor.querySelector('[class*="PlayerHeadContainer"]')
+      );
     let updated = 0;
 
     for (const anchor of anchors) {
@@ -332,7 +322,9 @@
         // FotMob already renders a decimal rating in this player row. Replace
         // that exact element instead of adding a second pill beside the name.
         rememberOriginal(nativePill);
-        nativePill.textContent = result.rating == null ? "—" : String(result.rating);
+        // Remove FotMob's player-of-the-match star and accessibility label.
+        // They are not part of the OVR and otherwise distort the badge size.
+        nativePill.replaceChildren(document.createTextNode(result.rating == null ? "—" : String(result.rating)));
         nativePill.classList.add("fcdb-rating-pill");
         nativePill.classList.remove(...TONE_CLASSES);
         nativePill.classList.add(toneForRating(result.rating));
@@ -366,7 +358,8 @@
   function restoreFotMobRatings() {
     for (const [node, original] of savedPills) {
       if (!node.isConnected) continue;
-      node.textContent = original.text;
+      if (original.html != null) node.innerHTML = original.html;
+      else node.textContent = original.text;
       if (original.className == null) node.removeAttribute("class");
       else node.setAttribute("class", original.className);
       if (original.style == null) node.removeAttribute("style");
