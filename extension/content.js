@@ -31,6 +31,7 @@
       toggle.setAttribute("role", "group");
       toggle.setAttribute("aria-label", "Rating display");
       toggle.innerHTML =
+        '<span class="fcdb-extension-indicator"><i></i> FC COMPANION</span>' +
         '<button type="button" data-mode="fotmob" aria-pressed="true">FotMob</button>' +
         '<button type="button" data-mode="fc" aria-pressed="false">FC Database</button>';
       toggle.addEventListener("click", event => {
@@ -45,7 +46,8 @@
     if (!status) {
       status = document.createElement("div");
       status.id = "fc-match-companion-status";
-      status.hidden = true;
+      status.textContent = "Extension active - open a FotMob match to load ratings.";
+      status.hidden = false;
       status.setAttribute("role", "status");
       status.setAttribute("aria-live", "polite");
       placeStatus(status);
@@ -53,27 +55,15 @@
     return { toggle, status };
   }
 
-  function findLineupHeading() {
-    const headings = [...document.querySelectorAll("h1,h2,h3,h4,[role='heading']")];
-    return headings.find(node => /^(line.?ups?|starting\s*xi|lineup)$/i.test((node.textContent || "").trim()));
-  }
-
   function placeToggle(toggle) {
-    const heading = findLineupHeading();
-    if (heading?.parentElement) {
-      if (toggle.parentElement !== heading.parentElement.parentElement ||
-          toggle.previousElementSibling !== heading.parentElement) {
-        heading.parentElement.insertAdjacentElement("afterend", toggle);
-      }
-    } else if (document.body && toggle.parentElement !== document.body) {
-      document.body.insertAdjacentElement("afterbegin", toggle);
-    }
+    // Keep the control outside FotMob's frequently replaced match/lineup components.
+    const host = document.body || document.documentElement;
+    if (host && toggle.parentElement !== host) host.appendChild(toggle);
   }
 
   function placeStatus(status) {
-    const toggle = document.getElementById("fc-match-companion-toggle");
-    if (toggle?.parentElement && status.previousElementSibling !== toggle) toggle.insertAdjacentElement("afterend", status);
-    else if (!toggle && document.body && status.parentElement !== document.body) document.body.insertAdjacentElement("afterbegin", status);
+    const host = document.body || document.documentElement;
+    if (host && status.parentElement !== host) host.appendChild(status);
   }
 
   function setStatus(message, visible = true) {
