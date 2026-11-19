@@ -13,7 +13,7 @@
   let observerTimer = 0;
   let lastApplySignature = "";
 
-  const PLAYER_LINK = /\/players\/(\d+)(?=[/?#]|$)/;
+  const PLAYER_LINK = /\/players\/(\d+)(?=[/?#]|$)/;\n  const TONE_CLASSES = ["fcdb-ovr-elite", "fcdb-ovr-high", "fcdb-ovr-mid", "fcdb-ovr-low", "fcdb-ovr-poor", "fcdb-ovr-none"];
   const MATCH_ID = /(?:^#|[#:])(?:[^0-9]*)(\d{5,})/;
 
   function getMatchId() {
@@ -222,34 +222,39 @@
     }
   }
 
+  function getFotMobPlayerId(anchor) {
+    const href = anchor.getAttribute("href") || "";
+    const pathMatch = href.match(PLAYER_LINK);
+    if (pathMatch) return pathMatch[1];
+    try {
+      const url = new URL(href, location.origin);
+      const queryId = url.searchParams.get("player");
+      if (queryId && /^\d+$/.test(queryId)) return queryId;
+    } catch (_) {}
+    return "";
+  }
+
   function findRatingPill(playerAnchor) {
-    // FotMob lineup rows render the native rating in:
-    // .TopRight > .PlayerRatingCSS > span
-    // The generated CSS suffix changes, so match the stable component name.
-    let current = playerAnchor;
-    for (let level = 0; current && level < 10; level++, current = current.parentElement) {
-      const exact = current.querySelector('div[class*="PlayerRatingCSS"]');
-      if (exact && /^\d{1,2}(?:\.\d)?$/.test((exact.textContent || "").trim())) {
-        return exact;
-      }
+    // In FotMob match lineups the rating belongs to the player anchor itself.
+    // Keep the search inside that anchor so a nearby player's rating can never
+    // be mistaken for this player's rating.
+    const exact = playerAnchor.querySelector('div[class*="PlayerRatingCSS"]');
+    if (exact && /^\d{1,2}(?:\.\d)?$/.test((exact.textContent || "").trim())) {
+      return exact;
     }
 
-    // Fallback for other FotMob views with a different rating component.
-    current = playerAnchor;
-    for (let level = 0; current && level < 8; level++, current = current.parentElement) {
-      const candidates = [...current.querySelectorAll("span, div, strong, b")]
-        .filter(node => {
-          if (node.closest("#fc-match-companion-toggle, #fc-match-companion-status")) return false;
-          const text = (node.textContent || "").trim();
-          if (!/^\d{1,2}(?:\.\d)?$/.test(text) || node.children.length > 0) return false;
-          const classes = String(node.className || "").toLowerCase();
-          const ratingClass = /rating|score|performance|pill/.test(classes);
-          const decimalRating = /^\d{1,2}\.\d$/.test(text) && Number(text) >= 1 && Number(text) <= 10;
-          return ratingClass || decimalRating;
-        });
-      if (candidates.length) return candidates[0];
-    }
-    return null;
+    // Limited fallback, also scoped to this player's anchor only.
+    const candidates = [...playerAnchor.querySelectorAll("span, div, strong, b")]
+      .filter(node => {
+        if (node.closest("#fc-match-companion-toggle, #fc-match-companion-status")) return false;
+        const text = (node.textContent || "").trim();
+        if (!/^\d{1,2}(?:\.\d)?$/.test(text) || node.children.length > 0) return false;
+        const classes = String(node.className || "").toLowerCase();
+        const ratingClass = /rating|score|performance|pill/.test(classes);
+        const decimalRating = /^\d{1,2}\.\d$/.test(text) && Number(text) >= 1 && Number(text) <= 10;
+        return ratingClass || decimalRating;
+      });
+    return candidates[0] || null;
   }
 
   function rememberOriginal(node) {
@@ -299,16 +304,12 @@
 
   function applyDatabaseRatings() {
     if (activeMode !== "fc" || !ratingByFotMobId.size) return;
-    const anchors = [...document.querySelectorAll('a[href*="/players/"]')];
+    const anchors = [...document.querySelectorAll('a[href*="/players/"], a[href*="player="]')];
     let updated = 0;
-    const seenIds = new Set();
 
     for (const anchor of anchors) {
-      const match = (anchor.getAttribute("href") || "").match(PLAYER_LINK);
-      if (!match) continue;
-      const playerId = match[1];
-      if (seenIds.has(playerId)) continue;
-      seenIds.add(playerId);
+      const playerId = getFotMobPlayerId(anchor);
+      if (!playerId) continue;
       const result = ratingByFotMobId.get(playerId);
       if (!result) continue;
 
@@ -318,7 +319,7 @@
         // that exact element instead of adding a second pill beside the name.
         rememberOriginal(nativePill);
         nativePill.textContent = result.rating == null ? "—" : String(result.rating);
-        nativePill.classList.add("fcdb-rating-pill", toneForRating(result.rating));
+        nativePill.classList.add("fcdb-rating-pill");\n        nativePill.classList.remove(...TONE_CLASSES);\n        nativePill.classList.add(toneForRating(result.rating));
         nativePill.title = result.fcradarUrl
           ? "FC Database OVR - click to open this player on FCRadar"
           : "FC Database OVR";
