@@ -80,6 +80,7 @@
   justify-content: center !important;
   min-width: 28px !important;
   min-height: 22px !important;
+  width: max-content !important;
   box-sizing: border-box !important;
   border-radius: 999px !important;
   padding: 2px 7px !important;
