@@ -1,0 +1,77 @@
+#fc-match-companion-toggle {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px;
+  border: 1px solid rgba(133, 153, 170, .42);
+  border-radius: 10px;
+  background: rgba(12, 19, 27, .96);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .32);
+  color: #f4f7fa;
+  font: 600 12px/1.2 system-ui, sans-serif;
+  backdrop-filter: blur(12px);
+}
+#fc-match-companion-toggle button {
+  appearance: none;
+  border: 0;
+  border-radius: 7px;
+  padding: 9px 12px;
+  background: transparent;
+  color: #c1cbd4;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#fc-match-companion-toggle button[aria-pressed="true"] {
+  color: #fff;
+  background: #344655;
+}
+#fc-match-companion-toggle button:focus-visible {
+  outline: 2px solid #83b7ef;
+  outline-offset: 2px;
+}
+#fc-match-companion-status {
+  position: fixed;
+  right: 18px;
+  bottom: 66px;
+  z-index: 2147483646;
+  max-width: min(340px, calc(100vw - 36px));
+  padding: 8px 11px;
+  border: 1px solid rgba(133, 153, 170, .28);
+  border-radius: 8px;
+  background: rgba(12, 19, 27, .94);
+  color: #e8edf2;
+  font: 500 11px/1.4 system-ui, sans-serif;
+  box-shadow: 0 5px 18px rgba(0, 0, 0, .25);
+}
+#fc-match-companion-status[hidden] { display: none !important; }
+.fcdb-rating-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 26px !important;
+  box-sizing: border-box !important;
+  border-radius: 4px !important;
+  padding: 2px 5px !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  font-variant-numeric: tabular-nums !important;
+  line-height: 1.25 !important;
+  text-align: center !important;
+  opacity: 1 !important;
+}
+.fcdb-rating-pill.fcdb-ovr-elite { background: #087b43 !important; }
+.fcdb-rating-pill.fcdb-ovr-high { background: #48a66b !important; color: #071b10 !important; }
+.fcdb-rating-pill.fcdb-ovr-mid { background: #e0c64b !important; color: #29240b !important; }
+.fcdb-rating-pill.fcdb-ovr-low { background: #e18a3b !important; color: #271506 !important; }
+.fcdb-rating-pill.fcdb-ovr-poor { background: #bd4545 !important; }
+.fcdb-rating-pill.fcdb-ovr-none { background: #65717c !important; color: #fff !important; }
+@media (max-width: 600px) {
+  #fc-match-companion-toggle { right: 10px; bottom: 10px; }
+  #fc-match-companion-toggle button { padding: 9px 10px; font-size: 11px; }
+  #fc-match-companion-status { right: 10px; bottom: 58px; }
+}
