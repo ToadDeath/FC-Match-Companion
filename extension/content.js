@@ -13,7 +13,7 @@
   let observerTimer = 0;
   let lastApplySignature = "";
 
-  const PLAYER_LINK = /\/players\/(\d+)(?:\/|$)/;
+  const PLAYER_LINK = /\/players\/(\d+)(?=[/?#]|$);
   const MATCH_ID = /(?:^#|[#:])(?:[^0-9]*)(\d{5,})/;
 
   function getMatchId() {
