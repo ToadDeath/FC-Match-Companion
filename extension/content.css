@@ -78,9 +78,14 @@
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+  width: 28px !important;
   min-width: 28px !important;
+  max-width: 28px !important;
+  height: 22px !important;
   min-height: 22px !important;
-  width: max-content !important;
+  max-height: 22px !important;
+  flex: 0 0 28px !important;
+  overflow: hidden !important;
   box-sizing: border-box !important;
   border-radius: 999px !important;
   padding: 3px 7px 1px !important;
@@ -120,4 +125,35 @@
   padding: 2px 5px 1px !important;
   font-size: 11px !important;
   line-height: 1.15 !important;
+}
+
+
+/* The portrait is the positioning context for OVRs when FotMob has no native rating. */
+[class*="PlayerHeadContainer"] {
+  position: relative !important;
+}
+.fcdb-injected-rating {
+  width: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  box-sizing: border-box !important;
+  flex: 0 0 28px !important;
+  border-radius: 999px !important;
+  padding: 2px 0 1px !important;
+  overflow: hidden !important;
+  font-size: 11px !important;
+}
+.fcdb-rating-pill {
+  width: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  flex: 0 0 28px !important;
+  padding: 2px 0 1px !important;
+  overflow: hidden !important;
 }
