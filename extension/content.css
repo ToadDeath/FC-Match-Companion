@@ -83,18 +83,18 @@
   width: max-content !important;
   box-sizing: border-box !important;
   border-radius: 999px !important;
-  padding: 2px 7px !important;
+  padding: 3px 7px 1px !important;
   color: #fff !important;
   font-weight: 700 !important;
   font-variant-numeric: tabular-nums !important;
-  line-height: 1.25 !important;
+  line-height: 1.2 !important;
   text-align: center !important;
   opacity: 1 !important;
 }
 .fcdb-rating-pill.fcdb-ovr-elite { background: #087b43 !important; }
-.fcdb-rating-pill.fcdb-ovr-high { background: #48a66b !important; color: #071b10 !important; }
-.fcdb-rating-pill.fcdb-ovr-mid { background: #e0c64b !important; color: #29240b !important; }
-.fcdb-rating-pill.fcdb-ovr-low { background: #e18a3b !important; color: #271506 !important; }
+.fcdb-rating-pill.fcdb-ovr-high { background: #48a66b !important; color: #fff !important; }
+.fcdb-rating-pill.fcdb-ovr-mid { background: #e0c64b !important; color: #fff !important; }
+.fcdb-rating-pill.fcdb-ovr-low { background: #e18a3b !important; color: #fff !important; }
 .fcdb-rating-pill.fcdb-ovr-poor { background: #bd4545 !important; }
 .fcdb-rating-pill.fcdb-ovr-none { background: #65717c !important; color: #fff !important; }
 @media (max-width: 600px) {
