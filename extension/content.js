@@ -328,7 +328,8 @@
         rememberOriginal(nativePill);
         nativePill.textContent = result.rating == null ? "—" : String(result.rating);
         nativePill.classList.add("fcdb-rating-pill");
-        nativePill.classList.remove(...TONE_CLASSES);\n        nativePill.classList.add(toneForRating(result.rating));
+        nativePill.classList.remove(...TONE_CLASSES);
+        nativePill.classList.add(toneForRating(result.rating));
         nativePill.title = result.fcradarUrl
           ? "FC Database OVR - click to open this player on FCRadar"
           : "FC Database OVR";
