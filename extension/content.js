@@ -310,10 +310,25 @@
 
       const nativePill = findRatingPill(anchor);
       if (nativePill) {
+        // FotMob already renders a decimal rating in this player row. Replace
+        // that exact element instead of adding a second pill beside the name.
         rememberOriginal(nativePill);
-        nativePill.hidden = true;
+        nativePill.textContent = result.rating == null ? "—" : String(result.rating);
+        nativePill.classList.add("fcdb-rating-pill", toneForRating(result.rating));
+        nativePill.title = result.fcradarUrl
+          ? "FC Database OVR - click to open this player on FCRadar"
+          : "FC Database OVR";
+        if (result.fcradarUrl && !nativePill.dataset.fcdbLinkBound) {
+          nativePill.dataset.fcdbLinkBound = "true";
+          nativePill.style.cursor = "pointer";
+          nativePill.addEventListener("click", () => {
+            const current = ratingByFotMobId.get(playerId);
+            if (current?.fcradarUrl) window.open(current.fcradarUrl, "_blank", "noopener");
+          });
+        }
+      } else {
+        createInjectedPill(anchor, playerId, result);
       }
-      createInjectedPill(anchor, playerId, result);
       updated++;
     }
 
