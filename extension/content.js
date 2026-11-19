@@ -578,8 +578,10 @@
     document.querySelectorAll(".fcdb-rating-pill, .fcdb-injected-rating-wrapper").forEach(node => {
       node.classList.remove("fcdb-rating-pill", "fcdb-bench-rating", ...TONE_CLASSES);
       node.removeAttribute("data-fcdb-player-id");
-      node.removeAttribute("data-fcdb-link-bound");\n      node.removeAttribute("data-fcradar-url");\n      node.removeAttribute("role");\n      node.removeAttribute("tabindex");
+      node.removeAttribute("data-fcdb-link-bound");
       node.removeAttribute("data-fcradar-url");
+      node.removeAttribute("role");
+      node.removeAttribute("tabindex");
       if (node.classList.contains("fcdb-injected-rating-wrapper")) node.remove();
     });
     lastApplySignature = "";
