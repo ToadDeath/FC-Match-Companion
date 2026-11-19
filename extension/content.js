@@ -14,6 +14,7 @@
   let loadSequence = 0;
   let observerTimer = 0;
   let lastApplySignature = "";
+  let suppressNativeFilterModeSwitch = false;
 
   const PLAYER_LINK = /\/players\/(\d+)(?=[/?#]|$)/;
   const TONE_CLASSES = ["fcdb-ovr-elite", "fcdb-ovr-high", "fcdb-ovr-mid", "fcdb-ovr-low", "fcdb-ovr-poor", "fcdb-ovr-none"];
@@ -68,6 +69,7 @@
         // native lineup filter should automatically return to FotMob mode.
         filterRow.addEventListener("click", event => {
           const clickedButton = event.target.closest("button");
+          if (suppressNativeFilterModeSwitch) return;
           if (clickedButton && clickedButton !== toggle && activeMode === "fc") {
             setMode("fotmob");
           }
@@ -97,9 +99,33 @@
     toggle.setAttribute("aria-pressed", String(activeMode === "fc"));
   }
 
+  function deactivateFotMobFilters() {
+    const row = document.getElementById("fc-match-companion-toggle")?.parentElement;
+    if (!row) return;
+    const activeButtons = [...row.querySelectorAll("button")].filter(button => {
+      if (button.id === "fc-match-companion-toggle") return false;
+      const classes = typeof button.className === "string" ? button.className : "";
+      return button.getAttribute("aria-pressed") === "true" ||
+        button.getAttribute("aria-selected") === "true" ||
+        button.getAttribute("aria-checked") === "true" ||
+        button.getAttribute("data-state") === "active" ||
+        /(^|\\s)(active|selected)(\\s|$)/i.test(classes);
+    });
+    if (!activeButtons.length) return;
+    suppressNativeFilterModeSwitch = true;
+    try {
+      // FotMob's selected lineup filter is a toggle. Clicking it once clears
+      // its selected state before FC Database becomes the active rating mode.
+      activeButtons.forEach(button => button.click());
+    } finally {
+      suppressNativeFilterModeSwitch = false;
+    }
+  }
+
   function setMode(mode) {
     if (mode !== "fotmob" && mode !== "fc") return;
     activeMode = mode;
+    if (mode === "fc") deactivateFotMobFilters();
     updateToggle();
     if (activeMode === "fotmob") {
       restoreFotMobRatings();
@@ -319,7 +345,10 @@
     const cardRoot = findPlayerCardRoot(anchor);
     if (!cardRoot || !cardRoot.matches('[class*="LineupPlayerCSS"]')) return null;
 
-    let wrapper = cardRoot.querySelector(".fcdb-injected-rating-wrapper");
+    const headContainer = cardRoot.querySelector('[class*="PlayerHeadContainer"]');
+    if (!headContainer) return null;
+
+    let wrapper = headContainer.querySelector(".fcdb-injected-rating-wrapper");
     let pill = wrapper?.querySelector(".fcdb-injected-rating");
     if (!wrapper) {
       // Match the exact player-rating component from a completed FotMob match,
@@ -335,10 +364,9 @@
         : "FC Database OVR";
       pill.setAttribute("role", result.fcradarUrl ? "link" : "img");
       wrapper.appendChild(pill);
-      // FotMob's TopRight badge is a direct child of LineupPlayerCSS,
-      // alongside PlayerHeadContainer, TopLeft and BottomRight.
-      // Appending inside PlayerHeadContainer breaks its absolute positioning.
-      cardRoot.appendChild(wrapper);
+      // FotMob positions TopRight relative to PlayerHeadContainer. Keeping
+      // this wrapper beside PlayerIcon matches its native completed-match DOM.
+      headContainer.appendChild(wrapper);
       injectedPills.set(wrapper, wrapper);
     }
     if (result.fcradarUrl) {
