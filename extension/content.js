@@ -319,7 +319,7 @@
     const cardRoot = findPlayerCardRoot(anchor);
     if (!cardRoot || !cardRoot.matches('[class*="LineupPlayerCSS"]')) return null;
 
-    let wrapper = portrait.querySelector(".fcdb-injected-rating-wrapper");
+    let wrapper = cardRoot.querySelector(".fcdb-injected-rating-wrapper");
     let pill = wrapper?.querySelector(".fcdb-injected-rating");
     if (!wrapper) {
       // Match the exact player-rating component from a completed FotMob match,
