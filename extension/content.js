@@ -372,13 +372,23 @@
         // version creates a second, oversized-looking badge.
         const benchItem = anchor.closest('li[class*="BenchPlayerCSS"]');
         if (benchItem) {
-          return Boolean(anchor.querySelector('[class*="LeftBenchItem"]'));
+          const horizontal = anchor.querySelector('[class*="LeftBenchItem"]');
+          if (!horizontal) return false;
+          // Coaches/staff can appear in FotMob's bench list but have neither
+          // a shirt number nor a playing position.
+          return Boolean(
+            horizontal.querySelector('[class*="Shirt"]') ||
+            [...horizontal.querySelectorAll('[class*="NotAvailableInfoContainer"]')]
+              .some(node => node.textContent.trim())
+          );
         }
 
-        // Starters use the portrait layout and have no horizontal bench row.
+        // Starters use the portrait layout. Require a shirt number or a
+        // playing role so staff links are never treated as players.
+        const playerCard = anchor.querySelector('[class*="LineupPlayerCSS"]') || anchor;
         return Boolean(
-          anchor.querySelector('[class*="LineupPlayerCSS"] [class*="PlayerHeadContainer"]') ||
-          anchor.querySelector('[class*="PlayerHeadContainer"]')
+          playerCard.querySelector('[class*="Shirt"]') ||
+          playerCard.querySelector('[class*="RoleTextCSS"]')
         );
       });
     let updated = 0;
@@ -401,14 +411,19 @@
           const portraitIcon = leftCard.querySelector(".PlayerIcon");
           if (portraitIcon?.nextSibling) leftCard.insertBefore(badgeRow, portraitIcon.nextSibling);
           else leftCard.appendChild(badgeRow);
+          injectedPills.set(badgeRow, badgeRow);
         }
         let nativePill = badgeRow.querySelector('div[class*="PlayerRatingCSS"]');
         if (!nativePill) {
           nativePill = document.createElement("div");
           nativePill.className = "css-eqet27-PlayerRatingCSS e1m6ml490 fcdb-rating-pill";
           badgeRow.appendChild(nativePill);
+          // This is an extension-created placeholder, not a FotMob pill.
+          // Remove it on mode-off rather than restoring its FC styling.
+          injectedPills.set(nativePill, nativePill);
+        } else {
+          rememberOriginal(nativePill);
         }
-        rememberOriginal(nativePill);
         nativePill.replaceChildren(Object.assign(document.createElement("span"), {
           textContent: result.rating == null ? "—" : String(result.rating)
         }));
