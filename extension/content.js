@@ -7,6 +7,8 @@
   const savedPills = new Map();
   const injectedPills = new Map();
   const ratingByFotMobId = new Map();
+  const starterIdsBySide = { home: [], away: [] };
+  const visibleLookupPending = new Set();
   let activeMode = "fotmob";
   let activeMatchId = "";
   let loadSequence = 0;
@@ -27,7 +29,7 @@
   function getOrCreateUi() {
     let toggle = document.getElementById("fc-match-companion-toggle");
     if (!toggle) {
-      toggle = document.createElement("div");
+      toggle = document.createElement("button");
       toggle.id = "fc-match-companion-toggle";
       toggle.type = "button";
       toggle.textContent = "FC Database";
@@ -171,10 +173,17 @@
     ];
     const requests = [];
     const seen = new Set();
+    starterIdsBySide.home = [];
+    starterIdsBySide.away = [];
 
     for (const item of teams) {
       const team = teamLineup(lineup, item.side, item.header.id || (item.side === "home" ? general.homeTeam?.id : general.awayTeam?.id));
       const teamName = item.header.name || team.name || "";
+      const starterList = flattenPlayers(team.starters || team.players || []);
+      starterIdsBySide[item.side] = starterList
+        .map(player => player.id ?? player.playerId)
+        .filter(id => id != null)
+        .map(String);
       for (const player of teamPlayers(team)) {
         const id = player.id ?? player.playerId;
         const name = player.name || player.localizedName || "";
@@ -293,9 +302,9 @@
   }
 
   function createInjectedPill(anchor, playerId, result) {
-    // Upcoming fixtures and unavailable players often have no FotMob rating
-    // component. Place our replacement in the portrait itself so its position
-    // matches the native rating badge used on completed-match lineups.
+    // Recreate FotMob's two-level structure: TopRight positioning wrapper
+    // plus its native PlayerRatingCSS pill. The Team rating badge supplies
+    // FotMob's own PlayerRatingCSS class even on upcoming fixtures.
     const cardRoot = findPlayerCardRoot(anchor);
     const portrait = cardRoot.matches('[class*="PlayerHeadContainer"]')
       ? cardRoot
@@ -303,24 +312,43 @@
         anchor.querySelector('[class*="PlayerHeadContainer"]');
     if (!portrait) return null;
 
-    let pill = portrait.querySelector(".fcdb-injected-rating");
-    if (!pill) {
-      pill = result.fcradarUrl ? document.createElement("a") : document.createElement("span");
-      pill.className = "fcdb-rating-pill fcdb-injected-rating";
+    let wrapper = portrait.querySelector(".fcdb-injected-rating-wrapper");
+    let pill = wrapper?.querySelector(".fcdb-injected-rating");
+    if (!wrapper) {
+      wrapper = document.createElement("div");
+      wrapper.className = "css-upbi04-TopRight e16r8a9j11 fcdb-injected-rating-wrapper";
+      wrapper.setAttribute("offset", "27px");
+      pill = document.createElement("div");
+      const template = document.querySelector('[title="Team rating"] div[class*="PlayerRatingCSS"]') ||
+        document.querySelector('div[class*="PlayerRatingCSS"]');
+      pill.className = (template?.className || "css-1gybtde-PlayerRatingCSS e1m6ml490") +
+        " fcdb-rating-pill fcdb-injected-rating";
       pill.dataset.fcdbPlayerId = playerId;
+      pill.title = result.fcradarUrl
+        ? "FC Database OVR - click to open this player on FCRadar"
+        : "FC Database OVR";
+      pill.setAttribute("role", result.fcradarUrl ? "link" : "img");
       if (result.fcradarUrl) {
-        pill.href = result.fcradarUrl;
-        pill.target = "_blank";
-        pill.rel = "noopener noreferrer";
-        pill.title = "Open this player on FCRadar";
-        pill.setAttribute("aria-label", "FC Database OVR. Open FCRadar player profile");
+        pill.tabIndex = 0;
+        pill.addEventListener("click", () => window.open(pill.dataset.fcradarUrl, "_blank", "noopener"));
+        pill.addEventListener("keydown", event => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            window.open(pill.dataset.fcradarUrl, "_blank", "noopener");
+          }
+        });
       }
-      portrait.appendChild(pill);
-      injectedPills.set(pill, pill);
+      wrapper.appendChild(pill);
+      portrait.appendChild(wrapper);
+      injectedPills.set(wrapper, wrapper);
     }
-    pill.textContent = result.rating == null ? "—" : String(result.rating);
-    pill.className = "fcdb-rating-pill fcdb-injected-rating " + toneForRating(result.rating);
-    pill.hidden = false;
+    pill.dataset.fcradarUrl = result.fcradarUrl || "";
+    pill.replaceChildren(Object.assign(document.createElement("span"), {
+      textContent: result.rating == null ? "—" : String(result.rating)
+    }));
+    pill.classList.remove(...TONE_CLASSES);
+    pill.classList.add(toneForRating(result.rating));
+    wrapper.hidden = false;
     return pill;
   }
 
@@ -346,7 +374,9 @@
         rememberOriginal(nativePill);
         // Remove FotMob's player-of-the-match star and accessibility label.
         // They are not part of the OVR and otherwise distort the badge size.
-        nativePill.replaceChildren(document.createTextNode(result.rating == null ? "—" : String(result.rating)));
+        nativePill.replaceChildren(Object.assign(document.createElement("span"), {
+          textContent: result.rating == null ? "—" : String(result.rating)
+        }));
         nativePill.classList.add("fcdb-rating-pill");
         nativePill.classList.remove(...TONE_CLASSES);
         nativePill.classList.add(toneForRating(result.rating));
@@ -368,12 +398,78 @@
       updated++;
     }
 
+    updateTeamAverageBadges();
+    loadVisiblePlayerRatings(anchors);
     const signature = activeMatchId + ":" + updated + ":" + anchors.length;
     if (signature !== lastApplySignature) {
       lastApplySignature = signature;
       if (!updated) setStatus("FC Database ratings are loaded. Waiting for FotMob's lineup players to appear...");
       else setStatus("FC Database: " + [...ratingByFotMobId.values()].filter(result => result.rating != null).length +
         "/" + ratingByFotMobId.size + " players matched · " + updated + " lineup pills updated.");
+    }
+  }
+
+
+  function updateTeamAverageBadges() {
+    const badges = [...document.querySelectorAll('[title="Team rating"] div[class*="PlayerRatingCSS"]')];
+    const sides = ["home", "away"];
+    badges.forEach((badge, index) => {
+      const side = sides[index];
+      if (!side) return;
+      const ids = starterIdsBySide[side] || [];
+      const values = ids.map(id => ratingByFotMobId.get(id)?.rating);
+      const complete = ids.length === 11 && values.length === 11 &&
+        values.every(value => Number.isFinite(value));
+      const average = complete
+        ? (values.reduce((sum, value) => sum + value, 0) / 11).toFixed(1)
+        : "—";
+      rememberOriginal(badge);
+      badge.replaceChildren(Object.assign(document.createElement("span"), { textContent: average }));
+      badge.classList.add("fcdb-rating-pill");
+      badge.classList.remove(...TONE_CLASSES);
+      const numericAverage = complete ? Number(average) : null;
+      badge.classList.add(toneForRating(numericAverage));
+      badge.title = complete
+        ? "FC Database starting XI average OVR"
+        : "FC Database starting XI average unavailable - all 11 ratings are required";
+    });
+  }
+
+  async function loadVisiblePlayerRatings(anchors) {
+    const missing = [];
+    for (const anchor of anchors) {
+      const id = getFotMobPlayerId(anchor);
+      if (!id || ratingByFotMobId.has(id) || visibleLookupPending.has(id)) continue;
+      const card = findPlayerCardRoot(anchor);
+      const nameNode = card.querySelector('[title]') || card.querySelector('[class*="LineupPlayerText"]');
+      const name = nameNode?.getAttribute("title") || nameNode?.textContent?.trim() || "";
+      if (!name) continue;
+      visibleLookupPending.add(id);
+      missing.push({
+        key: "visible:" + id,
+        fotmobId: id,
+        name,
+        position: "",
+        nationality: "",
+        team: ""
+      });
+    }
+    if (!missing.length) return;
+    try {
+      const response = await invoke("ratings", { players: missing });
+      for (const player of missing) {
+        const result = response.ratings?.[player.key];
+        ratingByFotMobId.set(String(player.fotmobId), {
+          rating: result?.rating == null ? null : Number(result.rating),
+          status: result?.status || "not_found",
+          fcradarUrl: result?.fcradarUrl || ""
+        });
+      }
+      if (activeMode === "fc") applyDatabaseRatings();
+    } catch (error) {
+      console.warn("[FC Match Companion] Visible bench lookup failed", error);
+    } finally {
+      for (const player of missing) visibleLookupPending.delete(String(player.fotmobId));
     }
   }
 
