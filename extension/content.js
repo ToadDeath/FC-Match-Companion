@@ -248,12 +248,15 @@
 
   function matchesOrContains(element, classFragment) {
     return element.matches('[class*="' + classFragment + '"]') ||
+      Boolean(element.closest('[class*="' + classFragment + '"]')) ||
       Boolean(element.querySelector('[class*="' + classFragment + '"]'));
   }
 
   function findPlayerCardRoot(playerAnchor) {
-    if (playerAnchor.matches('[class*="LineupPlayerCSS"]')) return playerAnchor;
-    return playerAnchor.querySelector('[class*="LineupPlayerCSS"]') || playerAnchor;
+    return playerAnchor.closest('[class*="LineupPlayerCSS"]') ||
+      playerAnchor.closest('[class*="VerticalBenchPlayerCSS"]') ||
+      playerAnchor.querySelector('[class*="LineupPlayerCSS"]') ||
+      playerAnchor;
   }
 
   function findRatingPill(playerAnchor) {
