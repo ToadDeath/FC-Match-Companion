@@ -29,16 +29,12 @@
     if (!toggle) {
       toggle = document.createElement("div");
       toggle.id = "fc-match-companion-toggle";
-      toggle.setAttribute("role", "group");
-      toggle.setAttribute("aria-label", "Rating display");
-      toggle.innerHTML =
-        '<span class="fcdb-extension-indicator"><i></i> FC COMPANION</span>' +
-        '<button type="button" data-mode="fotmob" aria-pressed="true">FotMob</button>' +
-        '<button type="button" data-mode="fc" aria-pressed="false">FC Database</button>';
-      toggle.addEventListener("click", event => {
-        const button = event.target.closest("button[data-mode]");
-        if (!button) return;
-        setMode(button.dataset.mode);
+      toggle.type = "button";
+      toggle.textContent = "FC Database";
+      toggle.setAttribute("aria-label", "Toggle FC Database ratings");
+      toggle.setAttribute("aria-pressed", "false");
+      toggle.addEventListener("click", () => {
+        setMode(activeMode === "fc" ? "fotmob" : "fc");
       });
       placeToggle(toggle);
     }
@@ -57,9 +53,19 @@
   }
 
   function placeToggle(toggle) {
-    // Keep the control outside FotMob's frequently replaced match/lineup components.
-    const host = document.body || document.documentElement;
-    if (host && toggle.parentElement !== host) host.appendChild(toggle);
+    // Put the toggle alongside FotMob's native lineup filters. FotMob can
+    // replace this row during SPA navigation, so the observer rehomes it.
+    const filterRow = document.querySelector('[class*="FilterButtons"][class*="LineupFilterButtons"]') ||
+      document.querySelector('[class*="LineupFilterWrapper"]');
+    if (filterRow && toggle.parentElement !== filterRow) {
+      const referenceButton = filterRow.querySelector("button");
+      if (referenceButton) toggle.className = referenceButton.className + " fcdb-lineup-filter-button";
+      filterRow.appendChild(toggle);
+      return;
+    }
+    // Do not float the control over the page if the lineup filters are not
+    // present yet. It will be inserted when FotMob renders them.
+    if (!filterRow && toggle.parentElement) toggle.remove();
   }
 
   function placeStatus(status) {
@@ -75,9 +81,7 @@
 
   function updateToggle() {
     const { toggle } = getOrCreateUi();
-    toggle.querySelectorAll("button[data-mode]").forEach(button => {
-      button.setAttribute("aria-pressed", String(button.dataset.mode === activeMode));
-    });
+    toggle.setAttribute("aria-pressed", String(activeMode === "fc"));
   }
 
   function setMode(mode) {
@@ -242,12 +246,23 @@
     return "";
   }
 
+  function matchesOrContains(element, classFragment) {
+    return element.matches('[class*="' + classFragment + '"]') ||
+      Boolean(element.querySelector('[class*="' + classFragment + '"]'));
+  }
+
+  function findPlayerCardRoot(playerAnchor) {
+    if (playerAnchor.matches('[class*="LineupPlayerCSS"]')) return playerAnchor;
+    return playerAnchor.querySelector('[class*="LineupPlayerCSS"]') || playerAnchor;
+  }
+
   function findRatingPill(playerAnchor) {
-    // Only the actual lineup-card rating is eligible. Match/event feed cards
-    // also link to players, but must never receive an OVR badge.
-    const exact = playerAnchor.querySelector('div[class*="PlayerRatingCSS"]');
-    if (exact) return exact;
-    return null;
+    // The rating wrapper can be nested inside the link or attached to a
+    // player-card element that is itself the link.
+    const root = findPlayerCardRoot(playerAnchor);
+    return root.matches('div[class*="PlayerRatingCSS"]')
+      ? root
+      : root.querySelector('div[class*="PlayerRatingCSS"]');
   }
 
   function rememberOriginal(node) {
@@ -278,7 +293,11 @@
     // Upcoming fixtures and unavailable players often have no FotMob rating
     // component. Place our replacement in the portrait itself so its position
     // matches the native rating badge used on completed-match lineups.
-    const portrait = anchor.querySelector('[class*="PlayerHeadContainer"]');
+    const cardRoot = findPlayerCardRoot(anchor);
+    const portrait = cardRoot.matches('[class*="PlayerHeadContainer"]')
+      ? cardRoot
+      : cardRoot.querySelector('[class*="PlayerHeadContainer"]') ||
+        anchor.querySelector('[class*="PlayerHeadContainer"]');
     if (!portrait) return null;
 
     let pill = portrait.querySelector(".fcdb-injected-rating");
@@ -306,8 +325,8 @@
     if (activeMode !== "fc" || !ratingByFotMobId.size) return;
     const anchors = [...document.querySelectorAll('a[href*="/players/"], a[href*="player="]')]
       .filter(anchor =>
-        anchor.querySelector('[class*="LineupPlayerCSS"]') &&
-        anchor.querySelector('[class*="PlayerHeadContainer"]')
+        matchesOrContains(anchor, "LineupPlayerCSS") &&
+        matchesOrContains(anchor, "PlayerHeadContainer")
       );
     let updated = 0;
 
