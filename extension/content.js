@@ -317,11 +317,7 @@
     // plus its native PlayerRatingCSS pill. The Team rating badge supplies
     // FotMob's own PlayerRatingCSS class even on upcoming fixtures.
     const cardRoot = findPlayerCardRoot(anchor);
-    const portrait = cardRoot.matches('[class*="PlayerHeadContainer"]')
-      ? cardRoot
-      : cardRoot.querySelector('[class*="PlayerHeadContainer"]') ||
-        anchor.querySelector('[class*="PlayerHeadContainer"]');
-    if (!portrait) return null;
+    if (!cardRoot || !cardRoot.matches('[class*="LineupPlayerCSS"]')) return null;
 
     let wrapper = portrait.querySelector(".fcdb-injected-rating-wrapper");
     let pill = wrapper?.querySelector(".fcdb-injected-rating");
@@ -338,21 +334,22 @@
         ? "FC Database OVR - click to open this player on FCRadar"
         : "FC Database OVR";
       pill.setAttribute("role", result.fcradarUrl ? "link" : "img");
-      if (result.fcradarUrl) {
-        pill.tabIndex = 0;
-        pill.addEventListener("click", () => window.open(pill.dataset.fcradarUrl, "_blank", "noopener"));
-        pill.addEventListener("keydown", event => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            window.open(pill.dataset.fcradarUrl, "_blank", "noopener");
-          }
-        });
-      }
       wrapper.appendChild(pill);
-      portrait.appendChild(wrapper);
+      // FotMob's TopRight badge is a direct child of LineupPlayerCSS,
+      // alongside PlayerHeadContainer, TopLeft and BottomRight.
+      // Appending inside PlayerHeadContainer breaks its absolute positioning.
+      cardRoot.appendChild(wrapper);
       injectedPills.set(wrapper, wrapper);
     }
-    pill.dataset.fcradarUrl = result.fcradarUrl || "";
+    if (result.fcradarUrl) {
+      pill.dataset.fcradarUrl = result.fcradarUrl;
+      pill.setAttribute("role", "link");
+      pill.tabIndex = 0;
+    } else {
+      delete pill.dataset.fcradarUrl;
+      pill.removeAttribute("role");
+      pill.removeAttribute("tabindex");
+    }
     pill.replaceChildren(Object.assign(document.createElement("span"), {
       textContent: result.rating == null ? "—" : String(result.rating)
     }));
@@ -433,13 +430,14 @@
         nativePill.title = result.fcradarUrl
           ? "FC Database OVR - click to open this player on FCRadar"
           : "FC Database OVR";
-        if (result.fcradarUrl && !nativePill.dataset.fcdbLinkBound) {
-          nativePill.dataset.fcdbLinkBound = "true";
-          nativePill.style.cursor = "pointer";
-          nativePill.addEventListener("click", () => {
-            const current = ratingByFotMobId.get(playerId);
-            if (current?.fcradarUrl) window.open(current.fcradarUrl, "_blank", "noopener");
-          });
+        if (result.fcradarUrl) {
+          nativePill.dataset.fcradarUrl = result.fcradarUrl;
+          nativePill.setAttribute("role", "link");
+          nativePill.tabIndex = 0;
+        } else {
+          delete nativePill.dataset.fcradarUrl;
+          nativePill.removeAttribute("role");
+          nativePill.removeAttribute("tabindex");
         }
         updated++;
         continue;
@@ -461,13 +459,14 @@
         nativePill.title = result.fcradarUrl
           ? "FC Database OVR - click to open this player on FCRadar"
           : "FC Database OVR";
-        if (result.fcradarUrl && !nativePill.dataset.fcdbLinkBound) {
-          nativePill.dataset.fcdbLinkBound = "true";
-          nativePill.style.cursor = "pointer";
-          nativePill.addEventListener("click", () => {
-            const current = ratingByFotMobId.get(playerId);
-            if (current?.fcradarUrl) window.open(current.fcradarUrl, "_blank", "noopener");
-          });
+        if (result.fcradarUrl) {
+          nativePill.dataset.fcradarUrl = result.fcradarUrl;
+          nativePill.setAttribute("role", "link");
+          nativePill.tabIndex = 0;
+        } else {
+          delete nativePill.dataset.fcradarUrl;
+          nativePill.removeAttribute("role");
+          nativePill.removeAttribute("tabindex");
         }
       } else {
         const injected = createInjectedPill(anchor, playerId, result);
@@ -579,7 +578,7 @@
     document.querySelectorAll(".fcdb-rating-pill, .fcdb-injected-rating-wrapper").forEach(node => {
       node.classList.remove("fcdb-rating-pill", "fcdb-bench-rating", ...TONE_CLASSES);
       node.removeAttribute("data-fcdb-player-id");
-      node.removeAttribute("data-fcdb-link-bound");
+      node.removeAttribute("data-fcdb-link-bound");\n      node.removeAttribute("data-fcradar-url");\n      node.removeAttribute("role");\n      node.removeAttribute("tabindex");
       node.removeAttribute("data-fcradar-url");
       if (node.classList.contains("fcdb-injected-rating-wrapper")) node.remove();
     });
@@ -616,7 +615,20 @@
     }, 180);
   }
 
+  function handleFcradarActivation(event) {
+    const pill = event.target.closest?.("[data-fcradar-url]");
+    if (!pill || !pill.dataset.fcradarUrl) return;
+    if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
+    if (event.type === "keydown") event.preventDefault();
+    event.stopPropagation();
+    window.open(pill.dataset.fcradarUrl, "_blank", "noopener");
+  }
+
   function start() {
+    // A single delegated handler avoids attaching fresh listeners every time
+    // FotMob replaces a lineup node or the extension changes rating modes.
+    document.addEventListener("click", handleFcradarActivation);
+    document.addEventListener("keydown", handleFcradarActivation);
     const { toggle } = getOrCreateUi();
     placeToggle(toggle);
     updateToggle();
