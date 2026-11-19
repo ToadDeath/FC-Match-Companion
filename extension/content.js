@@ -355,14 +355,17 @@
     if (activeMode !== "fc" || !ratingByFotMobId.size) return;
     const anchors = [...document.querySelectorAll('a[href*="/players/"], a[href*="player="]')]
       .filter(anchor => {
-        // Bench cards have two layouts. The horizontal card has no portrait
-        // container; the vertical card wraps a LineupPlayerCSS card inside
-        // VerticalBenchPlayerCSS. Resolve the actual card before filtering.
-        const root = findPlayerCardRoot(anchor);
-        return Boolean(
-          root.querySelector('[class*="PlayerHeadContainer"]') ||
-          root.matches('[class*="PlayerHeadContainer"]')
+        // Starters and vertical bench cards use the portrait layout.
+        // Horizontal bench rows are a separate card and must be handled too.
+        const hasPortraitCard = Boolean(
+          anchor.querySelector('[class*="LineupPlayerCSS"] [class*="PlayerHeadContainer"]') ||
+          anchor.querySelector('[class*="PlayerHeadContainer"]')
         );
+        const isHorizontalBench = Boolean(
+          anchor.closest('li[class*="BenchPlayerCSS"]') &&
+          !anchor.querySelector('[class*="LineupPlayerCSS"]')
+        );
+        return hasPortraitCard || isHorizontalBench;
       });
     let updated = 0;
 
@@ -371,6 +374,47 @@
       if (!playerId) continue;
       const result = ratingByFotMobId.get(playerId);
       if (!result) continue;
+
+      const horizontalBench = anchor.closest('li[class*="BenchPlayerCSS"]') &&
+        !anchor.querySelector('[class*="LineupPlayerCSS"]');
+      if (horizontalBench) {
+        const leftCard = anchor.querySelector('[class*="LeftBenchItem"]') ||
+          anchor.querySelector('[class*="BenchItem"]') || anchor;
+        let badgeRow = anchor.querySelector('[class*="FilterBadgesCSS"]');
+        if (!badgeRow) {
+          badgeRow = document.createElement("div");
+          badgeRow.className = "css-jsdp74-HoriztonalFilterBadgesCSS e16r8a9j17";
+          const portraitIcon = leftCard.querySelector(".PlayerIcon");
+          if (portraitIcon?.nextSibling) leftCard.insertBefore(badgeRow, portraitIcon.nextSibling);
+          else leftCard.appendChild(badgeRow);
+        }
+        let nativePill = badgeRow.querySelector('div[class*="PlayerRatingCSS"]');
+        if (!nativePill) {
+          nativePill = document.createElement("div");
+          nativePill.className = "css-eqet27-PlayerRatingCSS e1m6ml490 fcdb-rating-pill";
+          badgeRow.appendChild(nativePill);
+        }
+        rememberOriginal(nativePill);
+        nativePill.replaceChildren(Object.assign(document.createElement("span"), {
+          textContent: result.rating == null ? "—" : String(result.rating)
+        }));
+        nativePill.classList.add("fcdb-rating-pill");
+        nativePill.classList.remove(...TONE_CLASSES);
+        nativePill.classList.add(toneForRating(result.rating));
+        nativePill.title = result.fcradarUrl
+          ? "FC Database OVR - click to open this player on FCRadar"
+          : "FC Database OVR";
+        if (result.fcradarUrl && !nativePill.dataset.fcdbLinkBound) {
+          nativePill.dataset.fcdbLinkBound = "true";
+          nativePill.style.cursor = "pointer";
+          nativePill.addEventListener("click", () => {
+            const current = ratingByFotMobId.get(playerId);
+            if (current?.fcradarUrl) window.open(current.fcradarUrl, "_blank", "noopener");
+          });
+        }
+        updated++;
+        continue;
+      }
 
       const nativePill = findRatingPill(anchor);
       if (nativePill) {
