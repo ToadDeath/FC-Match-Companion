@@ -45,27 +45,12 @@
 .fcdb-rating-pill.fcdb-ovr-low { background: #e18a3b !important; color: #000 !important; }
 .fcdb-rating-pill.fcdb-ovr-poor { background: #bd4545 !important; color: #000 !important; }
 .fcdb-rating-pill.fcdb-ovr-none { background: #65717c !important; color: #000 !important; }
-.fcdb-injected-rating-wrapper {
-  z-index: 5 !important;
-}
+/* Let FotMob's native TopRight and PlayerRatingCSS rules control
+   dimensions and placement. Only apply FC Database colors and typography. */
 .fcdb-injected-rating,
 .fcdb-bench-rating {
-  width: 28px !important;
-  min-width: 28px !important;
-  max-width: 28px !important;
-  height: 18px !important;
-  min-height: 18px !important;
-  max-height: 18px !important;
-  box-sizing: border-box !important;
-  padding: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  line-height: 18px !important;
-}
-.fcdb-injected-rating {
   cursor: pointer;
 }
-.fcdb-injected-rating:hover { filter: brightness(1.12); }
+.fcdb-injected-rating:hover,
+.fcdb-bench-rating:hover { filter: brightness(1.12); }
 .fcdb-injected-rating[hidden] { display: none !important; }
-[class*="PlayerHeadContainer"] { position: relative !important; }
