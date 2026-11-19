@@ -217,7 +217,9 @@
           if (!/^\d{1,2}(?:\.\d)?$/.test(text)) return false;
           if (node.children.length > 0) return false;
           const classes = String(node.className || "").toLowerCase();
-          return /rating|score|performance|pill/.test(classes) || Number(text) >= 1 && Number(text) <= 10;
+          const ratingClass = /rating|score|performance|pill/.test(classes);
+          const decimalRating = /^\d{1,2}\.\d$/.test(text) && Number(text) >= 1 && Number(text) <= 10;
+          return ratingClass || decimalRating;
         });
       if (candidates.length) {
         candidates.sort((a, b) => {
