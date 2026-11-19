@@ -1,6 +1,6 @@
 # FC Match Companion for FotMob
 
-This is the first Chrome extension build. It adds a floating **FotMob | FC Database** selector to FotMob match pages. FC Database mode requests the match lineup and OVRs from the existing Supabase Edge Function, then replaces detected FotMob rating pills with FC Database OVRs and matching FC-style colors. Switching back restores the original rating text and styling.
+This Chrome extension adds a **FotMob | FC Database** selector to FotMob match pages. It loads the match lineup as soon as the match ID is available. In FC Database mode, it displays the OVR beside each matched player and applies FC-style rating colors. OVRs link to the corresponding FCRadar player profile when the backend has a confirmed player match. Existing FotMob rating pills are hidden while FC Database mode is active and restored when switching back.
 
 ## Install in Chrome
 
@@ -16,9 +16,9 @@ The extension only runs on `https://www.fotmob.com/*` and calls this project's S
 
 ## Current limitations
 
-- This is an initial integration. FotMob changes its page markup over time, and the extension uses DOM detection to locate existing rating pills. Some match views may need selector adjustments after real-world testing.
+- This is an initial integration. FotMob changes its page markup over time, so the extension locates lineup headings and player links dynamically. Some match views may need selector adjustments after real-world testing.
 - FC Database ratings are loaded for players returned in the match lineup, including available substitutes and bench players.
-- A missing FC Database OVR is shown as a neutral dash when a corresponding FotMob rating pill can be identified.
+- A missing FC Database OVR is shown as a neutral dash beside the player when the player is present in the loaded lineup.
 - The extension currently targets Chrome Manifest V3. Firefox packaging can be added after the Chrome behavior is verified.
 
 ## Security
