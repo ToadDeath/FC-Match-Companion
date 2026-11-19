@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "FC Match Companion for FotMob",
+  "version": "0.1.0",
+  "description": "Replace FotMob match ratings with FC Database OVRs.",
+  "permissions": [],
+  "host_permissions": [
+    "https://www.fotmob.com/*",
+    "https://czjbxpizhovhktfejbay.supabase.co/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.fotmob.com/*"],
+      "js": ["config.js", "content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
