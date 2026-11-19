@@ -366,17 +366,20 @@
     if (activeMode !== "fc" || !ratingByFotMobId.size) return;
     const anchors = [...document.querySelectorAll('a[href*="/players/"], a[href*="player="]')]
       .filter(anchor => {
-        // Starters and vertical bench cards use the portrait layout.
-        // Horizontal bench rows are a separate card and must be handled too.
-        const hasPortraitCard = Boolean(
+        // FotMob renders BOTH horizontal and vertical versions of each bench
+        // player in the DOM. Only update the horizontal row, which already
+        // has the compact native rating slot. Updating the hidden portrait
+        // version creates a second, oversized-looking badge.
+        const benchItem = anchor.closest('li[class*="BenchPlayerCSS"]');
+        if (benchItem) {
+          return Boolean(anchor.querySelector('[class*="LeftBenchItem"]'));
+        }
+
+        // Starters use the portrait layout and have no horizontal bench row.
+        return Boolean(
           anchor.querySelector('[class*="LineupPlayerCSS"] [class*="PlayerHeadContainer"]') ||
           anchor.querySelector('[class*="PlayerHeadContainer"]')
         );
-        const isHorizontalBench = Boolean(
-          anchor.closest('li[class*="BenchPlayerCSS"]') &&
-          !anchor.querySelector('[class*="LineupPlayerCSS"]')
-        );
-        return hasPortraitCard || isHorizontalBench;
       });
     let updated = 0;
 
