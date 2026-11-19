@@ -60,14 +60,20 @@
 
   function placeToggle(toggle) {
     const heading = findLineupHeading();
-    if (heading?.parentElement) heading.parentElement.insertAdjacentElement("afterend", toggle);
-    else document.documentElement.appendChild(toggle);
+    if (heading?.parentElement) {
+      if (toggle.parentElement !== heading.parentElement.parentElement ||
+          toggle.previousElementSibling !== heading.parentElement) {
+        heading.parentElement.insertAdjacentElement("afterend", toggle);
+      }
+    } else if (document.body && toggle.parentElement !== document.body) {
+      document.body.insertAdjacentElement("afterbegin", toggle);
+    }
   }
 
   function placeStatus(status) {
     const toggle = document.getElementById("fc-match-companion-toggle");
-    if (toggle?.parentElement && toggle.parentElement !== document.documentElement) toggle.insertAdjacentElement("afterend", status);
-    else document.documentElement.appendChild(status);
+    if (toggle?.parentElement && status.previousElementSibling !== toggle) toggle.insertAdjacentElement("afterend", status);
+    else if (!toggle && document.body && status.parentElement !== document.body) document.body.insertAdjacentElement("afterbegin", status);
   }
 
   function setStatus(message, visible = true) {
@@ -314,16 +320,9 @@
       const nativePill = findRatingPill(anchor);
       if (nativePill) {
         rememberOriginal(nativePill);
-        nativePill.textContent = result.rating == null ? "—" : String(result.rating);
-        nativePill.className = (savedPills.get(nativePill).className || "") +
-          " fcdb-rating-pill " + toneForRating(result.rating);
-        nativePill.title = result.rating == null ? "No FC Database OVR available" : "FC Database OVR";
-        nativePill.setAttribute("aria-label", nativePill.title);
-        const injected = injectedPills.get(playerId);
-        if (injected) injected.hidden = true;
-      } else {
-        createInjectedPill(anchor, playerId, result);
+        nativePill.hidden = true;
       }
+      createInjectedPill(anchor, playerId, result);
       updated++;
     }
 
@@ -377,6 +376,10 @@
     if (observerTimer) clearTimeout(observerTimer);
     observerTimer = setTimeout(() => {
       observerTimer = 0;
+      const toggle = document.getElementById("fc-match-companion-toggle");
+      const status = document.getElementById("fc-match-companion-status");
+      if (toggle) placeToggle(toggle);
+      if (status) placeStatus(status);
       if (activeMode === "fc") applyDatabaseRatings();
     }, 180);
   }
